@@ -12,10 +12,24 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <iostream>
+#include "../utils.hpp"
+using namespace std;
 
 #define LISTENQ 1
 #define MAXDATASIZE 100
 #define MAXLINE 4096
+
+typedef struct user {
+    bool logged_in;
+    string name;
+    string ip_address;
+    bool is_playing;
+    string mark_type;
+    string challenger_ip_address;
+} usuario;
+
+typedef usuario* user;
 
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -34,7 +48,7 @@ int main (int argc, char **argv) {
     if (argc != 2) {
         fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
         fprintf(stderr,"Vai rodar um servidor de jogo da velha na porta <Porta> TCP\n");
-        exit(1);
+        std::exit(1);
     }
 
     /* Criação de um socket. É como se fosse um descritor de arquivo.
@@ -45,7 +59,7 @@ int main (int argc, char **argv) {
      * (por causa do número 0) */
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket :(\n");
-        exit(2);
+        std::exit(2);
     }
 
     /* Agora é necessário informar os endereços associados a este
@@ -64,7 +78,7 @@ int main (int argc, char **argv) {
     servaddr.sin_port        = htons(atoi(argv[1]));
     if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
         perror("bind :(\n");
-        exit(3);
+        std::exit(3);
     }
 
     /* Como este código é o código de um servidor, o socket será um
@@ -73,7 +87,7 @@ int main (int argc, char **argv) {
      * por conexões nos endereços definidos na função bind. */
     if (listen(listenfd, LISTENQ) == -1) {
         perror("listen :(\n");
-        exit(4);
+        std::exit(4);
     }
 
     printf("[Servidor no ar. Aguardando conexões na porta %s]\n",argv[1]);
@@ -91,7 +105,7 @@ int main (int argc, char **argv) {
          * deste novo socket é o retorno da função accept. */
         if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
             perror("accept :(\n");
-            exit(5);
+            std::exit(5);
         }
       
         /* Agora o servidor precisa tratar este cliente de forma
@@ -120,6 +134,10 @@ int main (int argc, char **argv) {
              * esperando por esta resposta) 
              */
 
+            user current_user = (user) malloc(sizeof(usuario));
+            current_user->logged_in = false;
+            current_user->is_playing = false;
+            
             /* ========================================================= */
             /* ========================================================= */
             /*                         EP1 INÍCIO                        */
@@ -127,7 +145,60 @@ int main (int argc, char **argv) {
             /* ========================================================= */
             /* TODO: É esta parte do código que terá que ser modificada
              * para que este servidor consiga interpretar comandos MQTT  */
-            
+            for (;;) {
+                n = read(connfd, recvline, MAXLINE);
+                recvline[n] = 0;
+
+                if (n < 0) {
+                    cout << "Error reading packet";
+                    continue;
+                }
+
+                vector<string> mensagem = convertAndSplit(recvline);
+                string comando = mensagem[0];
+
+                if (comando.compare("adduser") == 0) {
+                    //checa se está logado
+                    //se estiver devolve erro
+                    //se não estiver adiciona novo usuário e loga
+                } else if (comando.compare("password")) {
+                    //checa se está logado
+                    //se não estiver devolve erro
+                    //se estiver atualiza a senha
+                } else if (comando.compare("login") == 0) {
+                    //checa se está logado
+                    //se estiver devolve erro
+                    //se não estiver confere credenciais e loga
+                } else if (comando.compare("leaders") == 0) {
+                    //envia os lideres
+                } else if (comando.compare("list") == 0) {
+                    //checa se está logado
+                    //se estiver devolve erro
+                    //se não estiver devolve a lista de jogadores ativos
+                } else if (comando.compare("begin") == 0) {
+                    //checa se está logado
+                    //se não estiver devolve erro
+                    //se estiver verifica se oponente está logado
+                    //se nao estiver devolve erro
+                    //se estiver envia o convite para o adversário
+                    //recebe resposta do adversário
+                    //se for negativa informa desafiante que foi negado
+                    //se for positiva informa que o jogo pode começar, e quem começa
+                } else if (comando.compare("end") == 0) {
+                    //checa se está logado
+                    //se não estiver devolve erro
+                    //se estiver verifica se está em partida
+                    //se não estiver devolve erro
+                    //se estiver envia término do jogo
+                    //envia 
+                } else if (comando.compare("exit") == 0) {
+                    //desliga o socket
+                }
+
+                                
+            }
+
+
             /* ========================================================= */
             /* ========================================================= */
             /*                         EP1 FIM                           */
@@ -137,7 +208,7 @@ int main (int argc, char **argv) {
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
-            exit(0);
+            std::exit(0);
         }
         else
             /**** PROCESSO PAI ****/
@@ -146,5 +217,5 @@ int main (int argc, char **argv) {
              * pelo processo filho) */
             close(connfd);
     }
-    exit(0);
+    std::exit(0);
 }
