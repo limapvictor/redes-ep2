@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <iostream>
 #include "../utils.hpp"
+#include "actions.hpp"
 using namespace std;
 
 #define LISTENQ 1
@@ -29,6 +30,10 @@ typedef struct user {
 } usuario;
 
 typedef usuario* user;
+
+void login(user usuario, string username, string ip_addr);
+
+void logout(user usuario);
 
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -168,8 +173,8 @@ int main (int argc, char **argv) {
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password);
-                            login(current_user, username, ip_address);
-                            add_active_user(username, ip_address);
+                            login(current_user, username, ip_addr);
+                            add_active_user(username, ip_addr);
                             //enviaSucesso()
                         }
                     }
@@ -179,9 +184,9 @@ int main (int argc, char **argv) {
                     } else {
                         string old_password = mensagem[1];
                         string new_password = mensagem[2];
-                        string current_password = get_user_password(user->name);
+                        string current_password = get_user_password(current_user->name);
                         if (old_password.compare(current_password) == 0) {
-                            set_user_password(current_user);
+                            set_user_password(current_user->name);
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha antiga digitada está incorreta")
@@ -199,7 +204,7 @@ int main (int argc, char **argv) {
                         }
                         string current_password = get_user_password(username);
                         if (password.compare(current_password) == 0) {
-                            login(current_user, username);
+                            login(current_user, username, ip_addr);
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha informada está incorreta")
@@ -220,7 +225,7 @@ int main (int argc, char **argv) {
                         //enviaErro("Você deve estar logado para iniciar uma partida");
                     } else {
                         string oponente = mensagem[1];
-                        bool exists = check_user(oponente);
+                        bool exists = check_user_exists(oponente);
                         if (!exists) {
                             //enviaErro("Esse usuário não existe")
                         } else {
@@ -254,7 +259,7 @@ int main (int argc, char **argv) {
                 } else if (comando.compare("result") == 0) {
                     string status = mensagem[1];
                     if (status.compare("draw") == 0) {
-                        register_draw(current_user);
+                        register_draw(current_user->name, current_user->challenger_name);
                     } else if (status.compare("victory")) {
                         string winner = mensagem[2];
                         register_win(winner);
