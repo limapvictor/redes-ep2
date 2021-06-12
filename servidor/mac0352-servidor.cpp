@@ -25,8 +25,7 @@ typedef struct user {
     string name;
     string ip_address;
     bool is_playing;
-    string mark_type;
-    string challenger_ip_address;
+    string challenger_name;
 } usuario;
 
 typedef usuario* user;
@@ -158,47 +157,117 @@ int main (int argc, char **argv) {
                 string comando = mensagem[0];
 
                 if (comando.compare("adduser") == 0) {
-                    //checa se está logado
-                    //se estiver devolve erro
-                    //se não estiver adiciona novo usuário e loga
-                } else if (comando.compare("password")) {
-                    //checa se está logado
-                    //se não estiver devolve erro
-                    //se estiver atualiza a senha
+                    if (current_user->logged_in) {
+                        //enviaErro("Você já está logado.")
+                    } else {
+                        string username = mensagem[1];
+                        string password = mensagem[2];
+                        bool username_exists = check_user_exists(username);
+                        if (username_exists) {
+                            //enviaErro("Esse nome de usuário já existe")
+                        } else {
+                            //coloca usuário na tabela de usuários (username, ip, e port)
+                            add_new_user(username, password);
+                            login(current_user, username, ip_address);
+                            add_active_user(username, ip_address);
+                            //enviaSucesso()
+                        }
+                    }
+                } else if (comando.compare("password") == 0) {
+                    if (!(current_user->logged_in)) {
+                        //enviaErro("Você deve estar logado para utilizar este comando")
+                    } else {
+                        string old_password = mensagem[1];
+                        string new_password = mensagem[2];
+                        string current_password = get_user_password(user->name);
+                        if (old_password.compare(current_password) == 0) {
+                            set_user_password(current_user);
+                            //enviaSucesso
+                        } else {
+                            //enviaErro("A senha antiga digitada está incorreta")
+                        }                        
+                    }
                 } else if (comando.compare("login") == 0) {
-                    //checa se está logado
-                    //se estiver devolve erro
-                    //se não estiver confere credenciais e loga
+                    if (current_user->logged_in) {
+                        //enviaErro("Você já está logado");
+                    } else {
+                        string username = mensagem[1];
+                        string password = mensagem[2];
+                        bool has_account = check_user_exists(username);
+                        if (!has_account) {
+                            //enviaErro("Este usuário não está cadastrado"); 
+                        }
+                        string current_password = get_user_password(username);
+                        if (password.compare(current_password) == 0) {
+                            login(current_user, username);
+                            //enviaSucesso
+                        } else {
+                            //enviaErro("A senha informada está incorreta")
+                        }
+                    }
                 } else if (comando.compare("leaders") == 0) {
-                    //envia os lideres
+                    string lideres = get_lideres();
+                    //enviaSucesso(lideres)
                 } else if (comando.compare("list") == 0) {
-                    //checa se está logado
-                    //se estiver devolve erro
-                    //se não estiver devolve a lista de jogadores ativos
+                    if (!(current_user->logged_in)) {
+                        //enviaErro("Você precisa estar logado para ver os jogadores ativos")
+                    } else {
+                        string ativos = get_usuarios_ativos();
+                        //enviaSucesso(ativos);
+                    }
                 } else if (comando.compare("begin") == 0) {
-                    //checa se está logado
-                    //se não estiver devolve erro
-                    //se estiver verifica se oponente está logado
-                    //se nao estiver devolve erro
-                    //se estiver envia o convite para o adversário
-                    //recebe resposta do adversário
-                    //se for negativa informa desafiante que foi negado
-                    //se for positiva informa que o jogo pode começar, e quem começa
-                } else if (comando.compare("end") == 0) {
-                    //checa se está logado
-                    //se não estiver devolve erro
-                    //se estiver verifica se está em partida
-                    //se não estiver devolve erro
-                    //se estiver envia término do jogo
-                    //envia 
+                    if (!(current_user->logged_in)) {
+                        //enviaErro("Você deve estar logado para iniciar uma partida");
+                    } else {
+                        string oponente = mensagem[1];
+                        bool exists = check_user(oponente);
+                        if (!exists) {
+                            //enviaErro("Esse usuário não existe")
+                        } else {
+                            bool online = check_user_online(oponente);
+                            if (!online) {
+                                //enviaErro("Esse jogador não está online agora")
+                            } else {
+                                //enviaConvite(oponente);
+                                //se oponente recusou {
+                                    //enviaErro("O jogador recusou o desafio.")
+                                //} else {
+                                    //sorteia_inicio()
+                                    current_user->challenger_name = oponente;
+                                    current_user->is_playing = true;
+                                    //enviaSucesso(ipoponente)
+                                //}
+                            }
+                        }
+                    }
+                } else if (comando.compare("logout") ==0) {
+                    if (!(current_user->logged_in)) {
+                        //enviaErro("Você não está logado")
+                    } else {
+                        logout(current_user);
+                        //enviaSucesso()
+                    }
                 } else if (comando.compare("exit") == 0) {
-                    //desliga o socket
-                }
-
-                                
+                    //enviaSucesso()
+                    close(connfd);
+                    break;
+                } else if (comando.compare("result") == 0) {
+                    string status = mensagem[1];
+                    if (status.compare("draw") == 0) {
+                        register_draw(current_user);
+                    } else if (status.compare("victory")) {
+                        string winner = mensagem[2];
+                        register_win(winner);
+                    }
+                    current_user->is_playing = false;
+                    current_user->challenger_name = "";
+                    //enviaSucesso
+                } else if (comando.compare("endgame")) {
+                    current_user->is_playing = false;
+                    current_user->challenger_name = "";
+                    //enviaSucesso   
+                }            
             }
-
-
             /* ========================================================= */
             /* ========================================================= */
             /*                         EP1 FIM                           */
