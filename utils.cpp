@@ -3,7 +3,6 @@
 vector<string> convertAndSplit(char array[]) {
 
     string converted(array);
-
     string sep = " ";
 
     vector<string> splitted {};
@@ -15,5 +14,7 @@ vector<string> convertAndSplit(char array[]) {
         splitted.push_back(token);
         converted.erase(0, pos + sep.length());
     }
+    token = converted.substr(0);
+    splitted.push_back(token);
     return splitted;
 }

@@ -31,7 +31,7 @@ bool check_user_online(string username) {
 
 void add_new_user(string username, string password, string points) {
     ofstream userfile("./users/"+username+".txt");
-    userfile << password << " " << "0" << endl;
+    userfile << password << " " << points << endl;
     userfile.close();
 }
 

@@ -20,7 +20,7 @@ using namespace std;
 #define LISTENQ 1
 #define MAXDATASIZE 100
 #define MAXLINE 4096
-#define CLIENTPORT 33333
+#define CLIENTPORT "33333"
 
 typedef struct usuario {
     bool logged_in;
@@ -119,7 +119,7 @@ int main (int argc, char **argv) {
          * da fila de conexões que foram aceitas no socket listenfd e
          * vai criar um socket específico para esta conexão. O descritor
          * deste novo socket é o retorno da função accept. */
-        if ((connfd = accept(listenfd, (struct sockaddr *)&clientaddr, NULL)) == -1 ) {
+        if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
             perror("accept :(\n");
             std::exit(5);
         }
@@ -153,7 +153,8 @@ int main (int argc, char **argv) {
             current_user->logged_in = false;
             current_user->is_playing = false;
 
-            string ip_addr = inet_ntoa(clientaddr.sin_addr);
+            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
+            string ip_addr = "127.0.0.1";
             
             /* ========================================================= */
             /* ========================================================= */
@@ -176,19 +177,21 @@ int main (int argc, char **argv) {
 
                 if (comando.compare("adduser") == 0) {
                     if (current_user->logged_in) {
-                        //enviaErro("Você já está logado.")
+                        string error_message = "erro Você já está logado";
+                        write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool username_exists = check_user_exists(username);
                         if (username_exists) {
-                            //enviaErro("Esse nome de usuário já existe")
+                            string error_message = "erro Esse usuário já existe";
+                        write(connfd, error_message.c_str(), error_message.length());
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password, "0");
-                            login(current_user, username, ip_addr, "33333");
-                            add_active_user(username, ip_addr, "33333");
-                            //enviaSucesso()
+                            login(current_user, username, ip_addr, CLIENTPORT);
+                            add_active_user(username, ip_addr, CLIENTPORT);
+                            write(connfd, "sucesso", 7);
                         }
                     }
                 } else if (comando.compare("password") == 0) {
@@ -217,7 +220,7 @@ int main (int argc, char **argv) {
                         }
                         string current_password = get_user_password(username);
                         if (password.compare(current_password) == 0) {
-                            login(current_user, username, ip_addr, "33333");
+                            login(current_user, username, ip_addr, CLIENTPORT);
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha informada está incorreta")
