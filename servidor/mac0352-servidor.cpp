@@ -237,10 +237,10 @@ int main (int argc, char **argv) {
                         }
                     }
                 }
-                // else if (comando.compare("leaders") == 0) {
-                //     string lideres = get_lideres();
-                //     //enviaSucesso(lideres)
-                // }
+                else if (comando.compare("leaders") == 0) {
+                    string lideres = get_lideres();
+                    write(connfd, lideres.c_str(), lideres.length());
+                }
                 else if (comando.compare("list") == 0) {
                     if (!(current_user->logged_in)) {
                         string error_message = "erro Você precisa estar logado para ver os jogadores ativos";
@@ -290,7 +290,8 @@ int main (int argc, char **argv) {
                     write(connfd, "sucesso", 7);
                     close(connfd);
                     break;
-                } else if (comando.compare("result") == 0) {
+                }
+                else if (comando.compare("result") == 0) {
                     string status = mensagem[1];
                     if (status.compare("draw") == 0) {
                         register_draw(current_user->name, current_user->challenger_name);

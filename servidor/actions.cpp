@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <vector>
+#include <algorithm>
 #include "actions.hpp"
 using namespace std;
 using filesystem::directory_iterator;
@@ -64,8 +65,13 @@ void set_user_password(string username, string new_password) {
     rename(temp_path, path);
 }
 
+bool sort_lideres(vector<string> x, vector<string> y) {
+    if (x[1].compare(y[1]) == 0) return (x[0] < y[0]);
+    return (x[1] > y[1]);
+}
+
 string get_lideres() {
-    string lideres = "leaders";
+    vector<vector<string>> leaders {};
     string path = "./users";
     for (const auto & file : directory_iterator(path)) {
         string username = file.path().filename().replace_extension("");
@@ -73,9 +79,14 @@ string get_lideres() {
         string password, points;
         userfile >> password >> points;
         userfile.close();
-        lideres = lideres + " " + username + " " + points;
+        vector<string> user = {username, points};
+        leaders.push_back(user);
     }
-    return lideres;
+    sort(leaders.begin(), leaders.end(), sort_lideres);
+    string result = "leaders";
+    for (vector<string> user : leaders)
+        result = result + " " + user[0] + " " + user[1];
+    return result;
 }
 
 string get_usuarios_ativos() {
