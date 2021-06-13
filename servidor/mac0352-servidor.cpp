@@ -34,6 +34,7 @@ typedef struct usuario {
 typedef usuario* user;
 
 void login(user usuario, string username, string ip_addr, string port) {
+    add_active_user(username, ip_addr, port);
     usuario->logged_in = true;
     usuario->name = username;
     usuario->ip_address = ip_addr;
@@ -41,6 +42,7 @@ void login(user usuario, string username, string ip_addr, string port) {
 }
 
 void logout(user usuario) {
+    remove_active_user(usuario->name);
     usuario = (user) malloc(sizeof(usuario));
     usuario->logged_in = false;
 }
@@ -190,7 +192,6 @@ int main (int argc, char **argv) {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password, "0");
                             login(current_user, username, ip_addr, CLIENTPORT);
-                            add_active_user(username, ip_addr, CLIENTPORT);
                             write(connfd, "sucesso", 7);
                         }
                     }
@@ -280,12 +281,13 @@ int main (int argc, char **argv) {
                         string error_message = "erro Você não está logado";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
-                        remove_active_user(current_user->name);
                         logout(current_user);
                         write(connfd, "sucesso", 7);
                     }
-                } else if (comando.compare("exit") == 0) {
-                    //enviaSucesso()
+                }
+                else if (comando.compare("exit") == 0) {
+                    logout(current_user);
+                    write(connfd, "sucesso", 7);
                     close(connfd);
                     break;
                 } else if (comando.compare("result") == 0) {
