@@ -235,42 +235,47 @@ int main (int argc, char **argv) {
                             }
                         }
                     }
-                } else if (comando.compare("leaders") == 0) {
-                    string lideres = get_lideres();
-                    //enviaSucesso(lideres)
-                } else if (comando.compare("list") == 0) {
+                }
+                // else if (comando.compare("leaders") == 0) {
+                //     string lideres = get_lideres();
+                //     //enviaSucesso(lideres)
+                // }
+                else if (comando.compare("list") == 0) {
                     if (!(current_user->logged_in)) {
-                        //enviaErro("Você precisa estar logado para ver os jogadores ativos")
+                        string error_message = "erro Você precisa estar logado para ver os jogadores ativos";
+                        write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string ativos = get_usuarios_ativos();
-                        //enviaSucesso(ativos);
+                        write(connfd, ativos.c_str(), ativos.length());
                     }
-                } else if (comando.compare("begin") == 0) {
-                    if (!(current_user->logged_in)) {
-                        //enviaErro("Você deve estar logado para iniciar uma partida");
-                    } else {
-                        string oponente = mensagem[1];
-                        bool exists = check_user_exists(oponente);
-                        if (!exists) {
-                            //enviaErro("Esse usuário não existe")
-                        } else {
-                            bool online = check_user_online(oponente);
-                            if (!online) {
-                                //enviaErro("Esse jogador não está online agora")
-                            } else {
-                                //enviaConvite(oponente);
-                                //se oponente recusou {
-                                    //enviaErro("O jogador recusou o desafio.")
-                                //} else {
-                                    //sorteia_inicio()
-                                    current_user->challenger_name = oponente;
-                                    current_user->is_playing = true;
-                                    //enviaSucesso(ipoponente)
-                                //}
-                            }
-                        }
-                    }
-                } else if (comando.compare("logout") ==0) {
+                }
+                // else if (comando.compare("begin") == 0) {
+                //     if (!(current_user->logged_in)) {
+                //         //enviaErro("Você deve estar logado para iniciar uma partida");
+                //     } else {
+                //         string oponente = mensagem[1];
+                //         bool exists = check_user_exists(oponente);
+                //         if (!exists) {
+                //             //enviaErro("Esse usuário não existe")
+                //         } else {
+                //             bool online = check_user_online(oponente);
+                //             if (!online) {
+                //                 //enviaErro("Esse jogador não está online agora")
+                //             } else {
+                //                 //enviaConvite(oponente);
+                //                 //se oponente recusou {
+                //                     //enviaErro("O jogador recusou o desafio.")
+                //                 //} else {
+                //                     //sorteia_inicio()
+                //                     current_user->challenger_name = oponente;
+                //                     current_user->is_playing = true;
+                //                     //enviaSucesso(ipoponente)
+                //                 //}
+                //             }
+                //         }
+                //     }
+                // }
+                else if (comando.compare("logout") ==0) {
                     if (!(current_user->logged_in)) {
                         //enviaErro("Você não está logado")
                     } else {
