@@ -194,18 +194,21 @@ int main (int argc, char **argv) {
                             write(connfd, "sucesso", 7);
                         }
                     }
-                } else if (comando.compare("password") == 0) {
+                }
+                else if (comando.compare("password") == 0) {
                     if (!(current_user->logged_in)) {
-                        //enviaErro("Você deve estar logado para utilizar este comando")
+                        string error_message = "erro Você deve estar logado para usar esse comando";
+                        write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string old_password = mensagem[1];
                         string new_password = mensagem[2];
                         string current_password = get_user_password(current_user->name);
                         if (old_password.compare(current_password) == 0) {
                             set_user_password(current_user->name, new_password);
-                            //enviaSucesso
+                            write(connfd, "sucesso", 7);
                         } else {
-                            //enviaErro("A senha antiga digitada está incorreta")
+                            string error_message = "erro A senha atual está incorreta";
+                            write(connfd, error_message.c_str(), error_message.length());
                         }                        
                     }
                 } else if (comando.compare("login") == 0) {
