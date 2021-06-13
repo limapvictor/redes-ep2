@@ -22,7 +22,7 @@ using namespace std;
 #define MAXLINE 4096
 #define CLIENTPORT 33333
 
-typedef struct user {
+typedef struct usuario {
     bool logged_in;
     string name;
     string ip_address;
@@ -185,7 +185,7 @@ int main (int argc, char **argv) {
                             //enviaErro("Esse nome de usuário já existe")
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
-                            add_new_user(username, password);
+                            add_new_user(username, password, "0");
                             login(current_user, username, ip_addr, "33333");
                             add_active_user(username, ip_addr, "33333");
                             //enviaSucesso()
@@ -199,7 +199,7 @@ int main (int argc, char **argv) {
                         string new_password = mensagem[2];
                         string current_password = get_user_password(current_user->name);
                         if (old_password.compare(current_password) == 0) {
-                            set_user_password(current_user->name);
+                            set_user_password(current_user->name, new_password);
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha antiga digitada está incorreta")

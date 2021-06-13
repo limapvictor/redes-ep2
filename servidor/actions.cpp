@@ -88,15 +88,6 @@ string get_usuarios_ativos() {
     return ativos;
 }
 
-void register_draw(string player_name, string challenger_name) {
-    add_points(player_name, 1);
-    add_points(challenger_name, 1);
-}
-
-void register_win(string winner) {
-    add_points(winner, 2);
-}
-
 void add_points(string username, int points_to_add) {
     string path = "./users/"+username+".txt";
     string temp_path = "./users/"+username+"_temp.txt";
@@ -108,4 +99,13 @@ void add_points(string username, int points_to_add) {
     add_new_user(username + "_temp", password, points);
     remove("./users/"+username+".txt");
     rename(temp_path, path);
+}
+
+void register_draw(string player_name, string challenger_name) {
+    add_points(player_name, 1);
+    add_points(challenger_name, 1);
+}
+
+void register_win(string winner) {
+    add_points(winner, 2);
 }
