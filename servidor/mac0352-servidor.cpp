@@ -211,22 +211,28 @@ int main (int argc, char **argv) {
                             write(connfd, error_message.c_str(), error_message.length());
                         }                        
                     }
-                } else if (comando.compare("login") == 0) {
+                }
+                else if (comando.compare("login") == 0) {
                     if (current_user->logged_in) {
-                        //enviaErro("Você já está logado");
+                        string error_message = "erro Você já está logado";
+                        write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool has_account = check_user_exists(username);
                         if (!has_account) {
-                            //enviaErro("Este usuário não está cadastrado"); 
+                            string error_message = "erro Esse usuário não está cadastrado";
+                            write(connfd, error_message.c_str(), error_message.length()); 
                         }
-                        string current_password = get_user_password(username);
-                        if (password.compare(current_password) == 0) {
-                            login(current_user, username, ip_addr, CLIENTPORT);
-                            //enviaSucesso
-                        } else {
-                            //enviaErro("A senha informada está incorreta")
+                        else {
+                            string current_password = get_user_password(username);
+                            if (password.compare(current_password) == 0) {
+                                login(current_user, username, ip_addr, CLIENTPORT);
+                                write(connfd, "sucesso", 7);
+                            } else {
+                                string error_message = "erro A senha está incorreta";
+                                write(connfd, error_message.c_str(), error_message.length());
+                            }
                         }
                     }
                 } else if (comando.compare("leaders") == 0) {

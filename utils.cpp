@@ -5,6 +5,7 @@ vector<string> convertAndSplit(char array[]) {
     string converted(array);
     string sep = " ";
 
+    converted.erase(converted.find_last_not_of(" \n\r\t")+1);
     vector<string> splitted {};
 
     size_t pos = 0;
