@@ -20,6 +20,7 @@ using namespace std;
 #define LISTENQ 1
 #define MAXDATASIZE 100
 #define MAXLINE 4096
+#define CLIENTPORT 33333
 
 typedef struct user {
     bool logged_in;
@@ -50,6 +51,7 @@ int main (int argc, char **argv) {
     int listenfd, connfd;
     /* Informações sobre o socket (endereço e porta) ficam nesta struct */
     struct sockaddr_in servaddr;
+    struct sockaddr_in clientaddr;
     /* Retorno da função fork para saber quem é o processo filho e
      * quem é o processo pai */
     pid_t childpid;
@@ -108,6 +110,7 @@ int main (int argc, char **argv) {
    
     /* O servidor no final das contas é um loop infinito de espera por
      * conexões e processamento de cada uma individualmente */
+    bzero(&clientaddr, sizeof(clientaddr));
 	for (;;) {
         /* O socket inicial que foi criado é o socket que vai aguardar
          * pela conexão na porta especificada. Mas pode ser que existam
@@ -116,11 +119,10 @@ int main (int argc, char **argv) {
          * da fila de conexões que foram aceitas no socket listenfd e
          * vai criar um socket específico para esta conexão. O descritor
          * deste novo socket é o retorno da função accept. */
-        if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
+        if ((connfd = accept(listenfd, (struct sockaddr *)&clientaddr, NULL)) == -1 ) {
             perror("accept :(\n");
             std::exit(5);
         }
-      
         /* Agora o servidor precisa tratar este cliente de forma
          * separada. Para isto é criado um processo filho usando a
          * função fork. O processo vai ser uma cópia deste. Depois da
@@ -150,6 +152,8 @@ int main (int argc, char **argv) {
             user current_user = (user) malloc(sizeof(usuario));
             current_user->logged_in = false;
             current_user->is_playing = false;
+
+            string ip_addr = inet_ntoa(clientaddr.sin_addr);
             
             /* ========================================================= */
             /* ========================================================= */
@@ -182,8 +186,8 @@ int main (int argc, char **argv) {
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password);
-                            login(current_user, username, ip_addr, port);
-                            add_active_user(username, ip_addr, port);
+                            login(current_user, username, ip_addr, "33333");
+                            add_active_user(username, ip_addr, "33333");
                             //enviaSucesso()
                         }
                     }
@@ -213,7 +217,7 @@ int main (int argc, char **argv) {
                         }
                         string current_password = get_user_password(username);
                         if (password.compare(current_password) == 0) {
-                            login(current_user, username, ip_addr, port);
+                            login(current_user, username, ip_addr, "33333");
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha informada está incorreta")
