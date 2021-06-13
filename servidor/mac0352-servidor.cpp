@@ -25,15 +25,24 @@ typedef struct user {
     bool logged_in;
     string name;
     string ip_address;
+    string port;
     bool is_playing;
     string challenger_name;
 } usuario;
 
 typedef usuario* user;
 
-void login(user usuario, string username, string ip_addr);
+void login(user usuario, string username, string ip_addr, string port) {
+    usuario->logged_in = true;
+    usuario->name = username;
+    usuario->ip_address = ip_addr;
+    usuario->port = port;
+}
 
-void logout(user usuario);
+void logout(user usuario) {
+    usuario = (user) malloc(sizeof(usuario));
+    usuario->logged_in = false;
+}
 
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -173,8 +182,8 @@ int main (int argc, char **argv) {
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password);
-                            login(current_user, username, ip_addr);
-                            add_active_user(username, ip_addr);
+                            login(current_user, username, ip_addr, port);
+                            add_active_user(username, ip_addr, port);
                             //enviaSucesso()
                         }
                     }
@@ -204,7 +213,7 @@ int main (int argc, char **argv) {
                         }
                         string current_password = get_user_password(username);
                         if (password.compare(current_password) == 0) {
-                            login(current_user, username, ip_addr);
+                            login(current_user, username, ip_addr, port);
                             //enviaSucesso
                         } else {
                             //enviaErro("A senha informada está incorreta")
@@ -249,6 +258,7 @@ int main (int argc, char **argv) {
                     if (!(current_user->logged_in)) {
                         //enviaErro("Você não está logado")
                     } else {
+                        remove_active_user(current_user->name);
                         logout(current_user);
                         //enviaSucesso()
                     }

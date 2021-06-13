@@ -7,7 +7,9 @@ bool check_user_online(string username);
 
 void add_new_user(string username, string password);
 
-void add_active_user(string username, string ip_addr);
+void add_active_user(string username, string ip_addr, string port);
+
+void remove_active_user(string username);
 
 string get_user_password(string username);
 

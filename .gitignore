@@ -35,4 +35,8 @@
 *.vscode
 
 # programa teste
-teste
+test
+
+#diretorios do servidor
+users
+online
