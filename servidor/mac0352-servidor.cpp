@@ -302,10 +302,11 @@ int main (int argc, char **argv) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
                     //enviaSucesso
-                } else if (comando.compare("endgame")) {
+                }
+                else if (comando.compare("endgame")) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
-                    //enviaSucesso   
+                    write(connfd, "sucesso", 7);
                 }            
             }
             /* ========================================================= */
