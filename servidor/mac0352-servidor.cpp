@@ -196,7 +196,7 @@ int main (int argc, char **argv) {
                         }
                     }
                 }
-                else if (comando.compare("password") == 0) {
+                else if (comando.compare("passwd") == 0) {
                     if (!(current_user->logged_in)) {
                         string error_message = "erro Você deve estar logado para usar esse comando";
                         write(connfd, error_message.c_str(), error_message.length());
