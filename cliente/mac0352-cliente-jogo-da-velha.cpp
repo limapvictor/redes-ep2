@@ -136,7 +136,7 @@ void handleLogoutCommand(string command) {
     }
 }
 
-void handleExitCommand() {
+void handleExitCommand(string command) {
     write(clientServerFD, command.c_str(), command.length());
     if (wasRequestSuccessful()) {
         std::cout << "Saindo do jogo..." << std::endl;
