@@ -252,25 +252,42 @@ int main (int argc, char **argv) {
                 }
                 // else if (comando.compare("begin") == 0) {
                 //     if (!(current_user->logged_in)) {
-                //         //enviaErro("Você deve estar logado para iniciar uma partida");
+                //         string error_message = "erro Você deve estar logado para iniciar uma partida";
+                //         write(connfd, error_message.c_str(), error_message.length());
                 //     } else {
                 //         string oponente = mensagem[1];
                 //         bool exists = check_user_exists(oponente);
                 //         if (!exists) {
-                //             //enviaErro("Esse usuário não existe")
+                //             string error_message = "erro Esse usuário não existe";
+                //             write(connfd, error_message.c_str(), error_message.length());
                 //         } else {
                 //             bool online = check_user_online(oponente);
                 //             if (!online) {
-                //                 //enviaErro("Esse jogador não está online agora")
+                //                 string error_message = "erro Esse jogador não está online agora";
+                //                 write(connfd, error_message.c_str(), error_message.length());
                 //             } else {
                 //                 //enviaConvite(oponente);
                 //                 //se oponente recusou {
-                //                     //enviaErro("O jogador recusou o desafio.")
+                //                     string error_message = "erro O jogador recusou o desafio";
+                //                     write(connfd, error_message.c_str(), error_message.length());
                 //                 //} else {
-                //                     //sorteia_inicio()
                 //                     current_user->challenger_name = oponente;
                 //                     current_user->is_playing = true;
-                //                     //enviaSucesso(ipoponente)
+                //                     string player_symbol, opponent_symbol;
+                //                     if ((rand() % 2) == 0) {
+                //                         player_symbol = "X";
+                //                         opponent_symbol = "O";
+                //                     } else {
+                //                         player_symbol = "O";
+                //                         opponent_symbol = "X";
+                //                     }
+                //                     string response = "accept " + ip_addr + " ";
+                //                     if ((rand() % 2) == 0) {
+                //                         response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
+                //                     } else {
+                //                         response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
+                //                     }
+                //                     write(connfd, response.c_str(), response.length());
                 //                 //}
                 //             }
                 //         }
