@@ -41,3 +41,6 @@ test
 servidor/users
 servidor/online
 servidor/servidor
+
+#executaveis
+*jogo-da-velha
