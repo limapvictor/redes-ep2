@@ -32,13 +32,13 @@ bool check_user_online(string username) {
 
 void add_new_user(string username, string password, string points) {
     ofstream userfile("./users/"+username+".txt");
-    userfile << password << " " << points << endl;
+    userfile << password << " " << points;
     userfile.close();
 }
 
 void add_active_user(string username, string ip_addr, string port) {
     ofstream userfile("./online/"+username+".txt");
-    userfile << ip_addr << " " << port << endl;
+    userfile << ip_addr << " " << port;
     userfile.close();
 }
 
