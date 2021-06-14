@@ -294,14 +294,15 @@ int main (int argc, char **argv) {
                 else if (comando.compare("result") == 0) {
                     string status = mensagem[1];
                     if (status.compare("draw") == 0) {
-                        register_draw(current_user->name, current_user->challenger_name);
-                    } else if (status.compare("victory")) {
+                        string player = mensagem[2];
+                        string oponente = mensagem[3];
+                        register_draw(player, oponente);
+                    } else if (status.compare("victory") == 0) {
                         string winner = mensagem[2];
                         register_win(winner);
                     }
                     current_user->is_playing = false;
-                    current_user->challenger_name = "";
-                    //enviaSucesso
+                    write(connfd, "sucesso", 7);
                 }
                 else if (comando.compare("endgame")) {
                     current_user->is_playing = false;
