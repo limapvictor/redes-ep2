@@ -179,26 +179,26 @@ int main (int argc, char **argv) {
 
                 if (comando.compare("adduser") == 0) {
                     if (current_user->logged_in) {
-                        string error_message = "erro Você já está logado";
+                        string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool username_exists = check_user_exists(username);
                         if (username_exists) {
-                            string error_message = "erro Esse usuário já existe";
+                            string error_message = "error Esse usuário já existe";
                         write(connfd, error_message.c_str(), error_message.length());
                         } else {
                             //coloca usuário na tabela de usuários (username, ip, e port)
                             add_new_user(username, password, "0");
                             login(current_user, username, ip_addr, CLIENTPORT);
-                            write(connfd, "sucesso", 7);
+                            write(connfd, "success", 7);
                         }
                     }
                 }
                 else if (comando.compare("passwd") == 0) {
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você deve estar logado para usar esse comando";
+                        string error_message = "error Você deve estar logado para usar esse comando";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string old_password = mensagem[1];
@@ -206,32 +206,32 @@ int main (int argc, char **argv) {
                         string current_password = get_user_password(current_user->name);
                         if (old_password.compare(current_password) == 0) {
                             set_user_password(current_user->name, new_password);
-                            write(connfd, "sucesso", 7);
+                            write(connfd, "success", 7);
                         } else {
-                            string error_message = "erro A senha atual está incorreta";
+                            string error_message = "error A senha atual está incorreta";
                             write(connfd, error_message.c_str(), error_message.length());
                         }                        
                     }
                 }
                 else if (comando.compare("login") == 0) {
                     if (current_user->logged_in) {
-                        string error_message = "erro Você já está logado";
+                        string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool has_account = check_user_exists(username);
                         if (!has_account) {
-                            string error_message = "erro Esse usuário não está cadastrado";
+                            string error_message = "error Esse usuário não está cadastrado";
                             write(connfd, error_message.c_str(), error_message.length()); 
                         }
                         else {
                             string current_password = get_user_password(username);
                             if (password.compare(current_password) == 0) {
                                 login(current_user, username, ip_addr, CLIENTPORT);
-                                write(connfd, "sucesso", 7);
+                                write(connfd, "success", 7);
                             } else {
-                                string error_message = "erro A senha está incorreta";
+                                string error_message = "error A senha está incorreta";
                                 write(connfd, error_message.c_str(), error_message.length());
                             }
                         }
@@ -243,7 +243,7 @@ int main (int argc, char **argv) {
                 }
                 else if (comando.compare("list") == 0) {
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você precisa estar logado para ver os jogadores ativos";
+                        string error_message = "error Você precisa estar logado para ver os jogadores ativos";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         string ativos = get_usuarios_ativos();
@@ -295,16 +295,16 @@ int main (int argc, char **argv) {
                 // }
                 else if (comando.compare("logout") ==0) {
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você não está logado";
+                        string error_message = "error Você não está logado";
                         write(connfd, error_message.c_str(), error_message.length());
                     } else {
                         logout(current_user);
-                        write(connfd, "sucesso", 7);
+                        write(connfd, "success", 7);
                     }
                 }
                 else if (comando.compare("exit") == 0) {
                     logout(current_user);
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                     close(connfd);
                     break;
                 }
@@ -319,12 +319,12 @@ int main (int argc, char **argv) {
                         register_win(winner);
                     }
                     current_user->is_playing = false;
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("endgame")) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                 }            
             }
             /* ========================================================= */
