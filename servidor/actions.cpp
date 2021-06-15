@@ -89,7 +89,10 @@ string get_usuarios_ativos() {
     string ativos = "active";
     for (const auto & file : directory_iterator("./online")) {
         string username = file.path().filename().replace_extension("");
-        ativos = ativos + '\n' + username;
+        string condition;
+        if (check_user_playing(username)) condition = " -> In a match";
+        else condition = " -> Not playing";
+        ativos = ativos + '\n' + username + condition;
     }
     return ativos;
 }

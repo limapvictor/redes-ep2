@@ -40,6 +40,7 @@ test
 #diretorios do servidor
 servidor/users
 servidor/online
+servidor/matches
 servidor/servidor
 
 #executaveis
