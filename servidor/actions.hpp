@@ -5,6 +5,8 @@ bool check_user_exists(string username);
 
 bool check_user_online(string username);
 
+bool check_user_playing(string username);
+
 void add_new_user(string username, string password, string points);
 
 void add_active_user(string username, string ip_addr, string port);

@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>

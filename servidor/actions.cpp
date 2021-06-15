@@ -9,58 +9,55 @@ using namespace std;
 using filesystem::directory_iterator;
 using filesystem::remove;
 using filesystem::rename;
+using filesystem::exists;
+
+#define USERS_PATH "./users/"
+#define ONLINE_PATH "./online/"
+#define MATCHES_PATH "./matches/"
 
 bool check_user_exists(string username) {
-    string path = "./users";
-
-    for (const auto & file : directory_iterator(path)) {
-        string name = file.path().filename().replace_extension("");
-        if (name.compare(username) == 0) return true;
-    }
-    return false;
+    return exists(USERS_PATH + username);
 }
 
 bool check_user_online(string username) {
-    string path = "./online";
+    return exists(ONLINE_PATH + username);
+}
 
-    for (const auto & file : directory_iterator(path)) {
-        string name = file.path().filename().replace_extension("");
-        if (name.compare(username) == 0) return true;
-    }
-    return false;
+bool check_user_playing(string username) {
+    return exists(MATCHES_PATH + username);
 }
 
 void add_new_user(string username, string password, string points) {
-    ofstream userfile("./users/"+username+".txt");
+    ofstream userfile(USERS_PATH + username);
     userfile << password << " " << points;
     userfile.close();
 }
 
 void add_active_user(string username, string ip_addr, string port) {
-    ofstream userfile("./online/"+username+".txt");
+    ofstream userfile(ONLINE_PATH + username);
     userfile << ip_addr << " " << port;
     userfile.close();
 }
 
 void remove_active_user(string username) {
-    remove("./online/"+username+".txt");
+    remove(ONLINE_PATH + username);
 }
 
 string get_user_password(string username) {
-    ifstream userfile("./users/"+username+".txt");
+    ifstream userfile(USERS_PATH + username);
     string password, points;
     userfile >> password >> points;
     return password;
 }
 
 void set_user_password(string username, string new_password) {
-    string path = "./users/"+username+".txt";
-    string temp_path = "./users/"+username+"_temp.txt";
+    string path = USERS_PATH + username;
+    string temp_path = USERS_PATH + username;
     ifstream userfile(path);
     string password, points;
     userfile >> password >> points;
     userfile.close();
-    add_new_user(username+"_temp", new_password, points);
+    add_new_user(username + "_temp", new_password, points);
     remove(path);
     rename(temp_path, path);
 }
@@ -72,10 +69,9 @@ bool sort_lideres(vector<string> x, vector<string> y) {
 
 string get_lideres() {
     vector<vector<string>> leaders {};
-    string path = "./users";
-    for (const auto & file : directory_iterator(path)) {
+    for (const auto & file : directory_iterator("./users")) {
         string username = file.path().filename().replace_extension("");
-        ifstream userfile(path + "/" + username + ".txt");
+        ifstream userfile(USERS_PATH + username);
         string password, points;
         userfile >> password >> points;
         userfile.close();
@@ -91,8 +87,7 @@ string get_lideres() {
 
 string get_usuarios_ativos() {
     string ativos = "active";
-    string path = "./online";
-    for (const auto & file : directory_iterator(path)) {
+    for (const auto & file : directory_iterator("./online")) {
         string username = file.path().filename().replace_extension("");
         ativos = ativos + " " + username;
     }
@@ -100,15 +95,15 @@ string get_usuarios_ativos() {
 }
 
 void add_points(string username, int points_to_add) {
-    string path = "./users/"+username+".txt";
-    string temp_path = "./users/"+username+"_temp.txt";
+    string path = USERS_PATH + username;
+    string temp_path = USERS_PATH + username;
     ifstream userfile(path);
     string password, points;
     userfile >> password >> points;
     userfile.close();
     points = to_string(stoi(points) + points_to_add);
     add_new_user(username + "_temp", password, points);
-    remove("./users/"+username+".txt");
+    remove(path);
     rename(temp_path, path);
 }
 
