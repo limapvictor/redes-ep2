@@ -60,19 +60,25 @@ void initClient(int argc, char **argv) {
     std::cout << "-------------------------JV's-------------------------" << std::endl;
 }
 
-bool wasRequestSuccessful() {
-    string requestResult;
-    int resultDelimiter;
+string getServerResponse() {
     char buffer[MAXLINE + 1];
     int bufferSize;
 
     if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
         std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
-        return false;
+        return std::string();
     }
 
     buffer[bufferSize] = '\0';
-    string response(buffer);
+    return std::string(buffer);
+}
+
+bool wasRequestSuccessful() {
+    string requestResult, response;
+    int resultDelimiter;
+    
+    response = getServerResponse();
+    if (response.length() == 0) return false;
 
     resultDelimiter = response.find(' ');
     requestResult = resultDelimiter > 0 
@@ -123,6 +129,23 @@ void handlePasswdCommand(string command) {
     }
 }
 
+void handleListCommand(string command) {
+    string response;
+    
+    if (!isUserLoggedIn) {
+        std::cerr << "Você deve estar logado para ver os usuários ativos." << std::endl;
+        return;
+    }
+
+    write(clientServerFD, command.c_str(), command.length());
+    response = getServerResponse();
+    if (response.substr(0, 4) == "erro") {
+        std::cerr << response.substr(4) << std::endl;
+        return;
+    }
+    std::cout << response.substr(7) << std::endl;
+}
+
 void handleLogoutCommand(string command) {
     if (!isUserLoggedIn) {
         std::cerr << "Você não está logado." << std::endl;
@@ -169,7 +192,7 @@ void handleClientCommand() {
                 std::cout << "leaders" << std::endl;
                 break;
             case 4:
-                std::cout << "list" << std::endl;
+                handleListCommand(command);
                 break;
             case 5:
                 std::cout << "begin" << std::endl;
