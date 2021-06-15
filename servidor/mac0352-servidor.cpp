@@ -242,7 +242,6 @@ int main (int argc, char **argv) {
                         log_login_fail(username, ip_addr, "User already logged");
                     }
                     else {
-                        string password = mensagem[2];
                         bool has_account = check_user_exists(username);
 
                         if (!has_account) {
@@ -251,17 +250,27 @@ int main (int argc, char **argv) {
                             log_login_fail(username, ip_addr, "Username not registered");
                         }
                         else {
-                            string current_password = get_user_password(username);
+                            bool already_logged = check_user_online(username);
 
-                            if (password.compare(current_password) == 0) {
-                                login(current_user, username, ip_addr, CLIENTPORT);
-                                write(connfd, "success", 7);
-                                log_login_success(username, ip_addr);
+                            if (already_logged) {
+                                string error_message = "error Esse usuário já está logado de outro lugar";
+                                write(connfd, error_message.c_str(), error_message.length());
+                                log_login_fail(username, ip_addr, "User already logged");
                             }
                             else {
-                                string error_message = "error A senha está incorreta";
-                                write(connfd, error_message.c_str(), error_message.length());
-                                log_login_fail(username, ip_addr, "Incorrect password");
+                                string password = mensagem[2];
+                                string current_password = get_user_password(username);
+
+                                if (password.compare(current_password) == 0) {
+                                    login(current_user, username, ip_addr, CLIENTPORT);
+                                    write(connfd, "success", 7);
+                                    log_login_success(username, ip_addr);
+                                }
+                                else {
+                                    string error_message = "error A senha está incorreta";
+                                    write(connfd, error_message.c_str(), error_message.length());
+                                    log_login_fail(username, ip_addr, "Incorrect password");
+                                }
                             }
                         }
                     }
