@@ -176,18 +176,21 @@ int main (int argc, char **argv) {
                 string comando = mensagem[0];
 
                 if (comando.compare("adduser") == 0) {
+
                     if (current_user->logged_in) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool username_exists = check_user_exists(username);
+
                         if (username_exists) {
                             string error_message = "error Esse usuário já existe";
                         write(connfd, error_message.c_str(), error_message.length());
-                        } else {
-                            //coloca usuário na tabela de usuários (username, ip, e port)
+                        }
+                        else {
                             add_new_user(username, password, "0");
                             login(current_user, username, ip_addr, CLIENTPORT);
                             write(connfd, "success", 7);
@@ -195,40 +198,49 @@ int main (int argc, char **argv) {
                     }
                 }
                 else if (comando.compare("passwd") == 0) {
+
                     if (!(current_user->logged_in)) {
                         string error_message = "error Você deve estar logado para usar esse comando";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         string old_password = mensagem[1];
                         string new_password = mensagem[2];
                         string current_password = get_user_password(current_user->name);
+
                         if (old_password.compare(current_password) == 0) {
                             set_user_password(current_user->name, new_password);
                             write(connfd, "success", 7);
-                        } else {
+                        }
+                        else {
                             string error_message = "error A senha atual está incorreta";
                             write(connfd, error_message.c_str(), error_message.length());
                         }                        
                     }
                 }
                 else if (comando.compare("login") == 0) {
+
                     if (current_user->logged_in) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         string username = mensagem[1];
                         string password = mensagem[2];
                         bool has_account = check_user_exists(username);
+
                         if (!has_account) {
                             string error_message = "error Esse usuário não está cadastrado";
                             write(connfd, error_message.c_str(), error_message.length()); 
                         }
                         else {
                             string current_password = get_user_password(username);
+
                             if (password.compare(current_password) == 0) {
                                 login(current_user, username, ip_addr, CLIENTPORT);
                                 write(connfd, "success", 7);
-                            } else {
+                            }
+                            else {
                                 string error_message = "error A senha está incorreta";
                                 write(connfd, error_message.c_str(), error_message.length());
                             }
@@ -240,10 +252,12 @@ int main (int argc, char **argv) {
                     write(connfd, lideres.c_str(), lideres.length());
                 }
                 else if (comando.compare("list") == 0) {
+
                     if (!(current_user->logged_in)) {
                         string error_message = "error Você precisa estar logado para ver os jogadores ativos";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         string ativos = get_usuarios_ativos();
                         write(connfd, ativos.c_str(), ativos.length());
                     }
@@ -292,10 +306,12 @@ int main (int argc, char **argv) {
                 //     }
                 // }
                 else if (comando.compare("logout") ==0) {
+
                     if (!(current_user->logged_in)) {
                         string error_message = "error Você não está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         logout(current_user);
                         write(connfd, "success", 7);
                     }
@@ -307,15 +323,19 @@ int main (int argc, char **argv) {
                     break;
                 }
                 else if (comando.compare("result") == 0) {
+
                     string status = mensagem[1];
+
                     if (status.compare("draw") == 0) {
                         string player = mensagem[2];
                         string oponente = mensagem[3];
                         register_draw(player, oponente);
-                    } else if (status.compare("victory") == 0) {
+                    }
+                    else if (status.compare("victory") == 0) {
                         string winner = mensagem[2];
                         register_win(winner);
                     }
+                    
                     current_user->is_playing = false;
                     write(connfd, "success", 7);
                 }

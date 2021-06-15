@@ -89,7 +89,7 @@ string get_usuarios_ativos() {
     string ativos = "active";
     for (const auto & file : directory_iterator("./online")) {
         string username = file.path().filename().replace_extension("");
-        ativos = ativos + " " + username;
+        ativos = ativos + '\n' + username;
     }
     return ativos;
 }
