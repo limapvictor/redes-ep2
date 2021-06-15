@@ -12,8 +12,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <iostream>
+#include <signal.h>
 #include "../utils.hpp"
 #include "actions.hpp"
+#include "log_actions.hpp"
 using namespace std;
 
 #define LISTENQ 1
@@ -45,6 +47,12 @@ void logout(user usuario) {
     usuario->logged_in = false;
 }
 
+void server_stop(int signum) {
+    cout << "Stopping server gracefully...";
+    log_server_stopped();
+    std::exit(0);
+}
+
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
      * e o outro que vai ser o socket específico de cada conexão */
@@ -59,6 +67,10 @@ int main (int argc, char **argv) {
     char recvline[MAXLINE + 1];
     /* Armazena o tamanho da string lida do cliente */
     ssize_t n;
+
+    signal(SIGINT, server_stop);
+
+    log_init();
 
     if (argc != 2) {
         fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
@@ -139,6 +151,11 @@ int main (int argc, char **argv) {
             /* Já que está no processo filho, não precisa mais do socket
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
+
+            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
+            string ip_addr = "127.0.0.1";
+
+            log_client_connected(ip_addr);
          
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
@@ -152,9 +169,6 @@ int main (int argc, char **argv) {
             user current_user = (user) malloc(sizeof(usuario));
             current_user->logged_in = false;
             current_user->is_playing = false;
-
-            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
-            string ip_addr = "127.0.0.1";
             
             /* ========================================================= */
             /* ========================================================= */
@@ -220,18 +234,21 @@ int main (int argc, char **argv) {
                 }
                 else if (comando.compare("login") == 0) {
 
+                    string username = mensagem[1];
+
                     if (current_user->logged_in) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
+                        log_login_fail(username, ip_addr, "User already logged");
                     }
                     else {
-                        string username = mensagem[1];
                         string password = mensagem[2];
                         bool has_account = check_user_exists(username);
 
                         if (!has_account) {
                             string error_message = "error Esse usuário não está cadastrado";
-                            write(connfd, error_message.c_str(), error_message.length()); 
+                            write(connfd, error_message.c_str(), error_message.length());
+                            log_login_fail(username, ip_addr, "Username not registered");
                         }
                         else {
                             string current_password = get_user_password(username);
@@ -239,10 +256,12 @@ int main (int argc, char **argv) {
                             if (password.compare(current_password) == 0) {
                                 login(current_user, username, ip_addr, CLIENTPORT);
                                 write(connfd, "success", 7);
+                                log_login_success(username, ip_addr);
                             }
                             else {
                                 string error_message = "error A senha está incorreta";
                                 write(connfd, error_message.c_str(), error_message.length());
+                                log_login_fail(username, ip_addr, "Incorrect password");
                             }
                         }
                     }
@@ -335,7 +354,7 @@ int main (int argc, char **argv) {
                         string winner = mensagem[2];
                         register_win(winner);
                     }
-                    
+
                     current_user->is_playing = false;
                     write(connfd, "success", 7);
                 }
@@ -351,6 +370,7 @@ int main (int argc, char **argv) {
             /* ========================================================= */
             /* ========================================================= */
 
+            log_client_disconnected(ip_addr);
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
