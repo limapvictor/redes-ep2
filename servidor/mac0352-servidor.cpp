@@ -48,7 +48,7 @@ void logout(user usuario) {
 }
 
 void server_stop(int signum) {
-    cout << "Stopping server gracefully...";
+    cout << "Stopping server gracefully...\n\n";
     log_server_stopped();
     std::exit(0);
 }
@@ -194,43 +194,43 @@ int main (int argc, char **argv) {
                     if (current_user->logged_in) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
+                        continue;
                     }
-                    else {
-                        string username = mensagem[1];
-                        string password = mensagem[2];
-                        bool username_exists = check_user_exists(username);
 
-                        if (username_exists) {
-                            string error_message = "error Esse usuário já existe";
+                    string username = mensagem[1];
+                    string password = mensagem[2];
+                    bool username_exists = check_user_exists(username);
+
+                    if (username_exists) {
+                        string error_message = "error Esse usuário já existe";
                         write(connfd, error_message.c_str(), error_message.length());
-                        }
-                        else {
-                            add_new_user(username, password, "0");
-                            login(current_user, username, ip_addr, CLIENTPORT);
-                            write(connfd, "success", 7);
-                        }
+                        continue;
                     }
+
+                    add_new_user(username, password, "0");
+                    login(current_user, username, ip_addr, CLIENTPORT);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("passwd") == 0) {
 
                     if (!(current_user->logged_in)) {
                         string error_message = "error Você deve estar logado para usar esse comando";
                         write(connfd, error_message.c_str(), error_message.length());
+                        continue;
                     }
-                    else {
-                        string old_password = mensagem[1];
-                        string new_password = mensagem[2];
-                        string current_password = get_user_password(current_user->name);
 
-                        if (old_password.compare(current_password) == 0) {
-                            set_user_password(current_user->name, new_password);
-                            write(connfd, "success", 7);
-                        }
-                        else {
-                            string error_message = "error A senha atual está incorreta";
-                            write(connfd, error_message.c_str(), error_message.length());
-                        }                        
+                    string old_password = mensagem[1];
+                    string new_password = mensagem[2];
+                    string current_password = get_user_password(current_user->name);
+
+                    if (old_password.compare(current_password) == 0) {
+                        set_user_password(current_user->name, new_password);
+                        write(connfd, "success", 7);
+                        continue;
                     }
+
+                    string error_message = "error A senha atual está incorreta";
+                    write(connfd, error_message.c_str(), error_message.length());
                 }
                 else if (comando.compare("login") == 0) {
 
@@ -240,40 +240,40 @@ int main (int argc, char **argv) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
                         log_login_fail(username, ip_addr, "User already logged");
+                        continue;
                     }
-                    else {
-                        bool has_account = check_user_exists(username);
 
-                        if (!has_account) {
-                            string error_message = "error Esse usuário não está cadastrado";
-                            write(connfd, error_message.c_str(), error_message.length());
-                            log_login_fail(username, ip_addr, "Username not registered");
-                        }
-                        else {
-                            bool already_logged = check_user_online(username);
+                    bool has_account = check_user_exists(username);
 
-                            if (already_logged) {
-                                string error_message = "error Esse usuário já está logado de outro lugar";
-                                write(connfd, error_message.c_str(), error_message.length());
-                                log_login_fail(username, ip_addr, "User already logged");
-                            }
-                            else {
-                                string password = mensagem[2];
-                                string current_password = get_user_password(username);
-
-                                if (password.compare(current_password) == 0) {
-                                    login(current_user, username, ip_addr, CLIENTPORT);
-                                    write(connfd, "success", 7);
-                                    log_login_success(username, ip_addr);
-                                }
-                                else {
-                                    string error_message = "error A senha está incorreta";
-                                    write(connfd, error_message.c_str(), error_message.length());
-                                    log_login_fail(username, ip_addr, "Incorrect password");
-                                }
-                            }
-                        }
+                    if (!has_account) {
+                        string error_message = "error Esse usuário não está cadastrado";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        log_login_fail(username, ip_addr, "Username not registered");
+                        continue;
                     }
+
+                    bool already_logged = check_user_online(username);
+
+                    if (already_logged) {
+                        string error_message = "error Esse usuário já está logado de outro lugar";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        log_login_fail(username, ip_addr, "User already logged");
+                        continue;
+                    }
+
+                    string password = mensagem[2];
+                    string current_password = get_user_password(username);
+
+                    if (password.compare(current_password) == 0) {
+                        login(current_user, username, ip_addr, CLIENTPORT);
+                        write(connfd, "success", 7);
+                        log_login_success(username, ip_addr);
+                        continue;
+                    }
+
+                    string error_message = "error A senha está incorreta";
+                    write(connfd, error_message.c_str(), error_message.length());
+                    log_login_fail(username, ip_addr, "Incorrect password");
                 }
                 else if (comando.compare("leaders") == 0) {
                     string lideres = get_lideres();
@@ -338,13 +338,14 @@ int main (int argc, char **argv) {
                     if (!(current_user->logged_in)) {
                         string error_message = "error Você não está logado";
                         write(connfd, error_message.c_str(), error_message.length());
+                        continue;
                     }
-                    else {
-                        logout(current_user);
-                        write(connfd, "success", 7);
-                    }
+
+                    logout(current_user);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("exit") == 0) {
+
                     logout(current_user);
                     write(connfd, "success", 7);
                     close(connfd);
@@ -368,6 +369,7 @@ int main (int argc, char **argv) {
                     write(connfd, "success", 7);
                 }
                 else if (comando.compare("endgame")) {
+
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
                     write(connfd, "success", 7);
