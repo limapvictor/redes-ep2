@@ -43,7 +43,6 @@ void login(user usuario, string username, string ip_addr, string port) {
 
 void logout(user usuario) {
     remove_active_user(usuario->name);
-    usuario = (user) malloc(sizeof(usuario));
     usuario->logged_in = false;
 }
 
