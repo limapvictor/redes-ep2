@@ -21,15 +21,17 @@
 using namespace std;
 
 #define MAXLINE 100
+#define LISTENQ 1
 
 int clientServerFD;
+int p2pFD;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
 
 string PROMPT = "JogoDaVelha> ";
 
-void initClient(int argc, char **argv) {
+void establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
    
     if (argc != 3) {
@@ -48,16 +50,41 @@ void initClient(int argc, char **argv) {
 
     if (inet_pton(AF_INET, argv[1], &serverAddress.sin_addr) <= 0) {
         fprintf(stderr,"Erro interno de rede. Tente novamente mais tarde.\n");
-        std::exit(2);
+        std::exit(7);
     }
    
     if (connect(clientServerFD, (struct sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         fprintf(stderr,"Não foi possível se conectar com o servidor. Tente novamente mais tarde,\n");
-        std::exit(2);
+        std::exit(3);
     }
 
     isClientConnected = true;
     std::cout << "-------------------------JV's-------------------------" << std::endl;
+}
+
+void initP2PListener() {
+    struct sockaddr_in clientAddress;
+
+    if ( (p2pFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
+        std::exit(4);
+    }
+    fcntl(p2pFD, F_SETFL, O_NONBLOCK);
+
+    bzero(&clientAddress, sizeof(clientAddress));
+    clientAddress.sin_family = AF_INET;
+    clientAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    clientAddress.sin_port = htons(0);
+
+    if (bind(p2pFD, (struct sockaddr *) &clientAddress, sizeof(clientAddress)) < 0 ) {
+        std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
+        std::exit(5);
+    }
+
+    if (listen(p2pFD, LISTENQ) < 0) {
+        std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
+        std::exit(6);
+    }
 }
 
 string getServerResponse() {
@@ -169,6 +196,20 @@ void handleExitCommand(string command) {
     isClientConnected = false;
 }
 
+void checkPendingInvite() {
+    int inviteFD;
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    if ((inviteFD = accept(p2pFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+        if ( (n=read(inviteFD, buffer, MAXLINE)) > 0) {
+            buffer[n] = '\0';
+            std::cout << "New invite: " << buffer << std::endl;
+        }
+        close(inviteFD);
+    }
+}
+
 void handleClientCommand() {
     string fullCommand, command;
     int commandDelimiter;
@@ -212,13 +253,16 @@ void handleClientCommand() {
 
 void handleConnectedClient() {
     while (isClientConnected) {
+        checkPendingInvite();
         std::cout << PROMPT;
         handleClientCommand();
     }
 }
 
 int main(int argc, char **argv) {
-    initClient(argc, argv);
+    establishServerConnection(argc, argv);
+
+    initP2PListener();
 
     handleConnectedClient();
 
