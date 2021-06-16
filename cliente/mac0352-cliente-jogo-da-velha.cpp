@@ -112,7 +112,7 @@ bool wasRequestSuccessful() {
         ? response.substr(0, resultDelimiter) 
         : response;
 
-    if (requestResult == "erro") {
+    if (requestResult == "error") {
         std::cout << "Erro:" << response.substr(resultDelimiter) << std::endl;
         return false;
     }
