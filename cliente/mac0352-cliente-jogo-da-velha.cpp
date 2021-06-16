@@ -112,7 +112,7 @@ bool wasRequestSuccessful() {
         ? response.substr(0, resultDelimiter) 
         : response;
 
-    if (requestResult == "erro") {
+    if (requestResult == "error") {
         std::cout << "Erro:" << response.substr(resultDelimiter) << std::endl;
         return false;
     }
@@ -196,6 +196,23 @@ void handleExitCommand(string command) {
     isClientConnected = false;
 }
 
+void sendInitialInfoToServer() {
+    struct sockaddr_in p2pSocketAddr;
+    unsigned int sockLen;
+    unsigned short p2pPort;
+
+    bzero(&p2pSocketAddr, sizeof(p2pSocketAddr));
+    sockLen = sizeof(p2pSocketAddr);
+    getsockname(p2pFD, (struct sockaddr *) &p2pSocketAddr, &sockLen);
+    p2pPort = ntohs(p2pSocketAddr.sin_port);
+
+    std::string info = "info " + std::to_string(p2pPort);
+    write(clientServerFD, info.c_str(), info.length());
+    while (!wasRequestSuccessful()) {
+        write(clientServerFD, info.c_str(), info.length());
+    }
+}
+
 void checkPendingInvite() {
     int inviteFD;
     char buffer[MAXLINE + 1];
@@ -252,6 +269,8 @@ void handleClientCommand() {
 }
 
 void handleConnectedClient() {
+    sendInitialInfoToServer();
+
     while (isClientConnected) {
         checkPendingInvite();
         std::cout << PROMPT;
