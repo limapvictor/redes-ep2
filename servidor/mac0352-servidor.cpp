@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
-#include <cstring>
 #include <ctime>
 #include <netdb.h>
 #include <sys/types.h>
@@ -47,7 +46,7 @@ void logout(user usuario) {
 }
 
 void server_stop(int signum) {
-    cout << "Stopping server gracefully...\n\n";
+    cout << "\nStopping server gracefully...\n\n";
     log_server_stopped();
     std::exit(0);
 }
@@ -91,7 +90,7 @@ int main (int argc, char **argv) {
      * quem é o processo pai */
     pid_t childpid;
     /* Armazena linhas recebidas do cliente */
-    char recvline[MAXLINE + 1];
+    char recvline[MAXLINE + 1] = {};
     /* Armazena o tamanho da string lida do cliente */
     ssize_t n;
 
@@ -204,7 +203,7 @@ int main (int argc, char **argv) {
              * esperando por esta resposta) 
              */
 
-            user current_user = (user) malloc(sizeof(usuario));
+            user current_user = new usuario;
             current_user->logged_in = false;
             current_user->is_playing = false;
             
@@ -248,6 +247,7 @@ int main (int argc, char **argv) {
                     add_new_user(username, password, "0");
                     login(current_user, username, ip_addr, port);
                     write(connfd, "success", 7);
+                    log_login_success(username, ip_addr);
                 }
                 else if (comando.compare("passwd") == 0) {
 
@@ -277,7 +277,7 @@ int main (int argc, char **argv) {
                     if (current_user->logged_in) {
                         string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                        log_login_fail(username, ip_addr, "User already logged");
+                        log_login_fail(username, ip_addr, "Usuário já estava logado.\n");
                         continue;
                     }
 
@@ -286,7 +286,7 @@ int main (int argc, char **argv) {
                     if (!has_account) {
                         string error_message = "error Esse usuário não está cadastrado";
                         write(connfd, error_message.c_str(), error_message.length());
-                        log_login_fail(username, ip_addr, "Username not registered");
+                        log_login_fail(username, ip_addr, "Usuário não está registrado.\n");
                         continue;
                     }
 
@@ -295,7 +295,7 @@ int main (int argc, char **argv) {
                     if (already_logged) {
                         string error_message = "error Esse usuário já está logado de outro lugar";
                         write(connfd, error_message.c_str(), error_message.length());
-                        log_login_fail(username, ip_addr, "User already logged");
+                        log_login_fail(username, ip_addr, "Usuário já estava logado em outro lugar.\n");
                         continue;
                     }
 
@@ -311,7 +311,7 @@ int main (int argc, char **argv) {
 
                     string error_message = "error A senha está incorreta";
                     write(connfd, error_message.c_str(), error_message.length());
-                    log_login_fail(username, ip_addr, "Incorrect password");
+                    log_login_fail(username, ip_addr, "Senha incorreta.\n");
                 }
                 else if (comando.compare("leaders") == 0) {
                     string lideres = get_lideres();
