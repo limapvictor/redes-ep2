@@ -40,7 +40,9 @@ test
 #diretorios do servidor
 servidor/users
 servidor/online
+servidor/matches
 servidor/servidor
+servidor/log
 
 #executaveis
 *jogo-da-velha

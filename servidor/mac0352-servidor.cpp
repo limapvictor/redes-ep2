@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
@@ -13,8 +12,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <iostream>
+#include <signal.h>
 #include "../utils.hpp"
 #include "actions.hpp"
+#include "log_actions.hpp"
 using namespace std;
 
 #define LISTENQ 1
@@ -43,8 +44,41 @@ void login(user usuario, string username, string ip_addr, string port) {
 
 void logout(user usuario) {
     remove_active_user(usuario->name);
-    usuario = (user) malloc(sizeof(usuario));
     usuario->logged_in = false;
+}
+
+void server_stop(int signum) {
+    cout << "Stopping server gracefully...\n\n";
+    log_server_stopped();
+    std::exit(0);
+}
+
+int invite_player(int connfd, string ip_addr, string port) {
+    int sockfd;
+    struct sockaddr_in other_clientaddr;
+
+    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    
+    bzero(&other_clientaddr, sizeof(other_clientaddr));
+    other_clientaddr.sin_family = AF_INET;
+    other_clientaddr.sin_port = htons(stoi(port));
+
+    if (inet_pton(AF_INET, ip_addr.c_str(), &other_clientaddr.sin_addr) <= 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    
+    if (connect(sockfd, (struct sockaddr *) &other_clientaddr, sizeof(other_clientaddr)) < 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    return sockfd;
 }
 
 int main (int argc, char **argv) {
@@ -61,6 +95,10 @@ int main (int argc, char **argv) {
     char recvline[MAXLINE + 1];
     /* Armazena o tamanho da string lida do cliente */
     ssize_t n;
+
+    signal(SIGINT, server_stop);
+
+    log_init();
 
     if (argc != 2) {
         fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
@@ -141,6 +179,11 @@ int main (int argc, char **argv) {
             /* Já que está no processo filho, não precisa mais do socket
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
+
+            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
+            string ip_addr = "127.0.0.1";
+
+            log_client_connected(ip_addr);
          
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
@@ -154,9 +197,6 @@ int main (int argc, char **argv) {
             user current_user = (user) malloc(sizeof(usuario));
             current_user->logged_in = false;
             current_user->is_playing = false;
-
-            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
-            string ip_addr = "127.0.0.1";
             
             /* ========================================================= */
             /* ========================================================= */
@@ -178,153 +218,215 @@ int main (int argc, char **argv) {
                 string comando = mensagem[0];
 
                 if (comando.compare("adduser") == 0) {
+
                     if (current_user->logged_in) {
-                        string error_message = "erro Você já está logado";
+                        string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
-                        string username = mensagem[1];
-                        string password = mensagem[2];
-                        bool username_exists = check_user_exists(username);
-                        if (username_exists) {
-                            string error_message = "erro Esse usuário já existe";
-                        write(connfd, error_message.c_str(), error_message.length());
-                        } else {
-                            //coloca usuário na tabela de usuários (username, ip, e port)
-                            add_new_user(username, password, "0");
-                            login(current_user, username, ip_addr, CLIENTPORT);
-                            write(connfd, "sucesso", 7);
-                        }
+                        continue;
                     }
+
+                    string username = mensagem[1];
+                    string password = mensagem[2];
+                    bool username_exists = check_user_exists(username);
+
+                    if (username_exists) {
+                        string error_message = "error Esse usuário já existe";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        continue;
+                    }
+
+                    add_new_user(username, password, "0");
+                    login(current_user, username, ip_addr, CLIENTPORT);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("passwd") == 0) {
+
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você deve estar logado para usar esse comando";
+                        string error_message = "error Você deve estar logado para usar esse comando";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
-                        string old_password = mensagem[1];
-                        string new_password = mensagem[2];
-                        string current_password = get_user_password(current_user->name);
-                        if (old_password.compare(current_password) == 0) {
-                            set_user_password(current_user->name, new_password);
-                            write(connfd, "sucesso", 7);
-                        } else {
-                            string error_message = "erro A senha atual está incorreta";
-                            write(connfd, error_message.c_str(), error_message.length());
-                        }                        
+                        continue;
                     }
+
+                    string old_password = mensagem[1];
+                    string new_password = mensagem[2];
+                    string current_password = get_user_password(current_user->name);
+
+                    if (old_password.compare(current_password) == 0) {
+                        set_user_password(current_user->name, new_password);
+                        write(connfd, "success", 7);
+                        continue;
+                    }
+
+                    string error_message = "error A senha atual está incorreta";
+                    write(connfd, error_message.c_str(), error_message.length());
                 }
                 else if (comando.compare("login") == 0) {
+
+                    string username = mensagem[1];
+
                     if (current_user->logged_in) {
-                        string error_message = "erro Você já está logado";
+                        string error_message = "error Você já está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
-                        string username = mensagem[1];
-                        string password = mensagem[2];
-                        bool has_account = check_user_exists(username);
-                        if (!has_account) {
-                            string error_message = "erro Esse usuário não está cadastrado";
-                            write(connfd, error_message.c_str(), error_message.length()); 
-                        }
-                        else {
-                            string current_password = get_user_password(username);
-                            if (password.compare(current_password) == 0) {
-                                login(current_user, username, ip_addr, CLIENTPORT);
-                                write(connfd, "sucesso", 7);
-                            } else {
-                                string error_message = "erro A senha está incorreta";
-                                write(connfd, error_message.c_str(), error_message.length());
-                            }
-                        }
+                        log_login_fail(username, ip_addr, "User already logged");
+                        continue;
                     }
+
+                    bool has_account = check_user_exists(username);
+
+                    if (!has_account) {
+                        string error_message = "error Esse usuário não está cadastrado";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        log_login_fail(username, ip_addr, "Username not registered");
+                        continue;
+                    }
+
+                    bool already_logged = check_user_online(username);
+
+                    if (already_logged) {
+                        string error_message = "error Esse usuário já está logado de outro lugar";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        log_login_fail(username, ip_addr, "User already logged");
+                        continue;
+                    }
+
+                    string password = mensagem[2];
+                    string current_password = get_user_password(username);
+
+                    if (password.compare(current_password) == 0) {
+                        login(current_user, username, ip_addr, CLIENTPORT);
+                        write(connfd, "success", 7);
+                        log_login_success(username, ip_addr);
+                        continue;
+                    }
+
+                    string error_message = "error A senha está incorreta";
+                    write(connfd, error_message.c_str(), error_message.length());
+                    log_login_fail(username, ip_addr, "Incorrect password");
                 }
                 else if (comando.compare("leaders") == 0) {
                     string lideres = get_lideres();
                     write(connfd, lideres.c_str(), lideres.length());
                 }
                 else if (comando.compare("list") == 0) {
+
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você precisa estar logado para ver os jogadores ativos";
+                        string error_message = "error Você precisa estar logado para ver os jogadores ativos";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
+                    }
+                    else {
                         string ativos = get_usuarios_ativos();
                         write(connfd, ativos.c_str(), ativos.length());
                     }
                 }
                 // else if (comando.compare("begin") == 0) {
+
                 //     if (!(current_user->logged_in)) {
-                //         string error_message = "erro Você deve estar logado para iniciar uma partida";
+                //         string error_message = "error Você deve estar logado para iniciar uma partida";
                 //         write(connfd, error_message.c_str(), error_message.length());
-                //     } else {
-                //         string oponente = mensagem[1];
-                //         bool exists = check_user_exists(oponente);
-                //         if (!exists) {
-                //             string error_message = "erro Esse usuário não existe";
-                //             write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     string oponente = mensagem[1];
+                //     bool exists = check_user_exists(oponente);
+                //     if (!exists) {
+                //         string error_message = "error Esse usuário não existe";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     bool online = check_user_online(oponente);
+                //     if (!online) {
+                //         string error_message = "error Esse jogador não está online agora";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     bool is_playing = check_user_playing(oponente);
+                //     if (is_playing) {
+                //         string error_message = "error Esse jogador já está em uma partida";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     int sockfd = invite_player(connfd, ip_addr, CLIENTPORT);
+
+                //     string invite = "invite " + current_user->name;
+                //     write(sockfd, invite.c_str(), invite.length());
+
+                //     n = read(sockfd, recvline, MAXLINE);
+
+                //     vector<string> answer_message = convertAndSplit(recvline);
+                //     string answer = answer_message[0];
+
+                //     if (answer.compare("reject") == 0) {
+                //         string error_message = "reject O jogador recusou o convite";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //     }
+                //     else if (answer.compare("accept") == 0) {
+                //         current_user->challenger_name = oponente;
+                //         current_user->is_playing = true;
+                //         string player_symbol, opponent_symbol;
+                //         if ((rand() % 2) == 0) {
+                //             player_symbol = "X";
+                //             opponent_symbol = "O";
                 //         } else {
-                //             bool online = check_user_online(oponente);
-                //             if (!online) {
-                //                 string error_message = "erro Esse jogador não está online agora";
-                //                 write(connfd, error_message.c_str(), error_message.length());
-                //             } else {
-                //                 //enviaConvite(oponente);
-                //                 //se oponente recusou {
-                //                     string error_message = "erro O jogador recusou o desafio";
-                //                     write(connfd, error_message.c_str(), error_message.length());
-                //                 //} else {
-                //                     current_user->challenger_name = oponente;
-                //                     current_user->is_playing = true;
-                //                     string player_symbol, opponent_symbol;
-                //                     if ((rand() % 2) == 0) {
-                //                         player_symbol = "X";
-                //                         opponent_symbol = "O";
-                //                     } else {
-                //                         player_symbol = "O";
-                //                         opponent_symbol = "X";
-                //                     }
-                //                     string response = "accept " + ip_addr + " ";
-                //                     if ((rand() % 2) == 0) {
-                //                         response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
-                //                     } else {
-                //                         response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
-                //                     }
-                //                     write(connfd, response.c_str(), response.length());
-                //                 //}
-                //             }
+                //             player_symbol = "O";
+                //             opponent_symbol = "X";
                 //         }
+                //         string response = "accept " + ip_addr + " " + CLIENTPORT + " ";
+                //         if ((rand() % 2) == 0) {
+                //             response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
+                //         } else {
+                //             response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
+                //         }
+                //         write(connfd, response.c_str(), response.length());
+                //         add_match(current_user->name, oponente);
+                //     }
+                //     else {
+                //         string error_message = "reject O convite não pode ser enviado. Tente novamente";
+                //         write(connfd, error_message.c_str(), error_message.length());
                 //     }
                 // }
                 else if (comando.compare("logout") ==0) {
+
                     if (!(current_user->logged_in)) {
-                        string error_message = "erro Você não está logado";
+                        string error_message = "error Você não está logado";
                         write(connfd, error_message.c_str(), error_message.length());
-                    } else {
-                        logout(current_user);
-                        write(connfd, "sucesso", 7);
+                        continue;
                     }
+
+                    logout(current_user);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("exit") == 0) {
+
                     logout(current_user);
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                     close(connfd);
                     break;
                 }
                 else if (comando.compare("result") == 0) {
+
                     string status = mensagem[1];
+
                     if (status.compare("draw") == 0) {
                         string player = mensagem[2];
                         string oponente = mensagem[3];
                         register_draw(player, oponente);
-                    } else if (status.compare("victory") == 0) {
+                    }
+                    else if (status.compare("victory") == 0) {
                         string winner = mensagem[2];
                         register_win(winner);
                     }
+
                     current_user->is_playing = false;
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                 }
                 else if (comando.compare("endgame")) {
+
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
-                    write(connfd, "sucesso", 7);
+                    write(connfd, "success", 7);
                 }            
             }
             /* ========================================================= */
@@ -333,6 +435,7 @@ int main (int argc, char **argv) {
             /* ========================================================= */
             /* ========================================================= */
 
+            log_client_disconnected(ip_addr);
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
