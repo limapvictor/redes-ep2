@@ -68,6 +68,16 @@ void set_user_password(string username, string new_password) {
     add_new_user(username, new_password, points);
 }
 
+net_addr get_user_net_info(string username) {
+    ifstream userfile(ONLINE_PATH + username);
+    string ip_addr, port;
+    userfile >> ip_addr >> port;
+    net_addr info = new net_address;
+    info->ip_addr = ip_addr;
+    info->port = port;
+    return info;
+}
+
 bool sort_lideres(vector<string> x, vector<string> y) {
     if (x[1].compare(y[1]) == 0) return (x[0] < y[0]);
     return (x[1] > y[1]);

@@ -358,7 +358,9 @@ int main (int argc, char **argv) {
                 //         continue;
                 //     }
 
-                //     int sockfd = invite_player(connfd, ip_addr, CLIENTPORT);
+                //     net_addr client_info = get_user_net_info(oponente);
+
+                //     int sockfd = invite_player(connfd, client_info->ip_addr, client_info->port);
 
                 //     string invite = "invite " + current_user->name;
                 //     write(sockfd, invite.c_str(), invite.length());
@@ -383,7 +385,7 @@ int main (int argc, char **argv) {
                 //             player_symbol = "O";
                 //             opponent_symbol = "X";
                 //         }
-                //         string response = "accept " + ip_addr + " " + CLIENTPORT + " ";
+                //         string response = "accept " + client_info->ip_addr + " " + client_info->port + " ";
                 //         if ((rand() % 2) == 0) {
                 //             response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
                 //         } else {

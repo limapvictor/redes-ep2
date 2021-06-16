@@ -1,6 +1,13 @@
 #include <cstring>
 using namespace std;
 
+typedef struct net_address {
+    string ip_addr;
+    string port;
+} net_address;
+
+typedef net_address* net_addr;
+
 bool check_user_exists(string username);
 
 bool check_user_online(string username);
@@ -18,6 +25,8 @@ void remove_active_user(string username);
 string get_user_password(string username);
 
 void set_user_password(string username, string password);
+
+net_addr get_user_net_info(string username);
 
 string get_lideres();
 
