@@ -184,6 +184,7 @@ int main (int argc, char **argv) {
             log_client_connected(ip_addr);
 
             n = read(connfd, recvline, MAXLINE);
+
             vector<string> info_message = convertAndSplit(recvline);
             while (info_message[0].compare("info") != 0) {
                 write(connfd, "error", 5);
@@ -214,9 +215,33 @@ int main (int argc, char **argv) {
             /* ========================================================= */
             /* TODO: É esta parte do código que terá que ser modificada
              * para que este servidor consiga interpretar comandos MQTT  */
+
+            //HEARTBEATfcntl(connfd, F_SETFL, O_NONBLOCK);
+
+            //HEARTBEATclock_t heartbeat_send_time = clock();
+            //HEARTBEATbool heartbeat_sent = false;
+            //HEARTBEATbool heartbeat_received = false;
+
+            //HEARTBEATclock_t accept_time;
+
             for (;;) {
+
+                // if (heartbeat_sent && ((float) ((clock() - accept_time) / CLOCKS_PER_SEC) > 180)) {
+                //     handleClientCrash();
+                // }
+                    
                 n = read(connfd, recvline, MAXLINE);
                 recvline[n] = 0;
+
+                // HEARTBEATif (n == -1 && errno == EAGAIN) {
+                //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
+                //         write(connfd, "heartbeat", 9);
+                //         heartbeat_send_time = clock();
+                //         heartbeat_sent = true;
+                //         accept_time = clock();
+                //     }
+                //     continue;
+                // }
 
                 if (n < 0) {
                     cout << "Error reading packet";
@@ -439,7 +464,17 @@ int main (int argc, char **argv) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
                     write(connfd, "success", 7);
-                }            
+                }
+
+                // HEARTBEATif (heartbeat_sent) {
+                //         n = read(connfd, recvline, MAXLINE);
+                //         if (n == -1 && errno == EAGAIN);
+                //         else if (n >= 0) {
+                //             heartbeat_sent = false;
+                //             heartbeat_received = true;                   
+                //         }
+                //     }
+                // }     
             }
             /* ========================================================= */
             /* ========================================================= */
