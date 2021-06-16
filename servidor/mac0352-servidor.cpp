@@ -21,7 +21,6 @@ using namespace std;
 #define LISTENQ 1
 #define MAXDATASIZE 100
 #define MAXLINE 4096
-#define CLIENTPORT "33333"
 
 typedef struct usuario {
     bool logged_in;
@@ -184,6 +183,17 @@ int main (int argc, char **argv) {
             string ip_addr = "127.0.0.1";
 
             log_client_connected(ip_addr);
+
+            n = read(connfd, recvline, MAXLINE);
+            vector<string> info_message = convertAndSplit(recvline);
+            while (info_message[0].compare("info") != 0) {
+                write(connfd, "error", 5);
+                n = read(connfd, recvline, MAXLINE);
+                info_message = convertAndSplit(recvline);
+            }
+
+            write(connfd, "success", 7);
+            string port = info_message[1];
          
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
@@ -236,7 +246,7 @@ int main (int argc, char **argv) {
                     }
 
                     add_new_user(username, password, "0");
-                    login(current_user, username, ip_addr, CLIENTPORT);
+                    login(current_user, username, ip_addr, port);
                     write(connfd, "success", 7);
                 }
                 else if (comando.compare("passwd") == 0) {
@@ -293,7 +303,7 @@ int main (int argc, char **argv) {
                     string current_password = get_user_password(username);
 
                     if (password.compare(current_password) == 0) {
-                        login(current_user, username, ip_addr, CLIENTPORT);
+                        login(current_user, username, ip_addr, port);
                         write(connfd, "success", 7);
                         log_login_success(username, ip_addr);
                         continue;
