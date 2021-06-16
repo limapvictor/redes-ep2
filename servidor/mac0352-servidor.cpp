@@ -53,6 +53,34 @@ void server_stop(int signum) {
     std::exit(0);
 }
 
+int invite_player(int connfd, string ip_addr, string port) {
+    int sockfd;
+    struct sockaddr_in other_clientaddr;
+
+    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    
+    bzero(&other_clientaddr, sizeof(other_clientaddr));
+    other_clientaddr.sin_family = AF_INET;
+    other_clientaddr.sin_port = htons(stoi(port));
+
+    if (inet_pton(AF_INET, ip_addr.c_str(), &other_clientaddr.sin_addr) <= 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    
+    if (connect(sockfd, (struct sockaddr *) &other_clientaddr, sizeof(other_clientaddr)) < 0) {
+        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+        write(connfd, error_message.c_str(), error_message.length());
+        return -1;
+    }
+    return sockfd;
+}
+
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
      * e o outro que vai ser o socket específico de cada conexão */
@@ -291,46 +319,72 @@ int main (int argc, char **argv) {
                     }
                 }
                 // else if (comando.compare("begin") == 0) {
+
                 //     if (!(current_user->logged_in)) {
-                //         string error_message = "erro Você deve estar logado para iniciar uma partida";
+                //         string error_message = "error Você deve estar logado para iniciar uma partida";
                 //         write(connfd, error_message.c_str(), error_message.length());
-                //     } else {
-                //         string oponente = mensagem[1];
-                //         bool exists = check_user_exists(oponente);
-                //         if (!exists) {
-                //             string error_message = "erro Esse usuário não existe";
-                //             write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     string oponente = mensagem[1];
+                //     bool exists = check_user_exists(oponente);
+                //     if (!exists) {
+                //         string error_message = "error Esse usuário não existe";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     bool online = check_user_online(oponente);
+                //     if (!online) {
+                //         string error_message = "error Esse jogador não está online agora";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     bool is_playing = check_user_playing(oponente);
+                //     if (is_playing) {
+                //         string error_message = "error Esse jogador já está em uma partida";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //         continue;
+                //     }
+
+                //     int sockfd = invite_player(connfd, ip_addr, CLIENTPORT);
+
+                //     string invite = "invite " + current_user->name;
+                //     write(sockfd, invite.c_str(), invite.length());
+
+                //     n = read(sockfd, recvline, MAXLINE);
+
+                //     vector<string> answer_message = convertAndSplit(recvline);
+                //     string answer = answer_message[0];
+
+                //     if (answer.compare("reject") == 0) {
+                //         string error_message = "reject O jogador recusou o convite";
+                //         write(connfd, error_message.c_str(), error_message.length());
+                //     }
+                //     else if (answer.compare("accept") == 0) {
+                //         current_user->challenger_name = oponente;
+                //         current_user->is_playing = true;
+                //         string player_symbol, opponent_symbol;
+                //         if ((rand() % 2) == 0) {
+                //             player_symbol = "X";
+                //             opponent_symbol = "O";
                 //         } else {
-                //             bool online = check_user_online(oponente);
-                //             if (!online) {
-                //                 string error_message = "erro Esse jogador não está online agora";
-                //                 write(connfd, error_message.c_str(), error_message.length());
-                //             } else {
-                //                 //enviaConvite(oponente);
-                //                 //se oponente recusou {
-                //                     string error_message = "erro O jogador recusou o desafio";
-                //                     write(connfd, error_message.c_str(), error_message.length());
-                //                 //} else {
-                //                     current_user->challenger_name = oponente;
-                //                     current_user->is_playing = true;
-                //                     string player_symbol, opponent_symbol;
-                //                     if ((rand() % 2) == 0) {
-                //                         player_symbol = "X";
-                //                         opponent_symbol = "O";
-                //                     } else {
-                //                         player_symbol = "O";
-                //                         opponent_symbol = "X";
-                //                     }
-                //                     string response = "accept " + ip_addr + " ";
-                //                     if ((rand() % 2) == 0) {
-                //                         response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
-                //                     } else {
-                //                         response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
-                //                     }
-                //                     write(connfd, response.c_str(), response.length());
-                //                 //}
-                //             }
+                //             player_symbol = "O";
+                //             opponent_symbol = "X";
                 //         }
+                //         string response = "accept " + ip_addr + " " + CLIENTPORT + " ";
+                //         if ((rand() % 2) == 0) {
+                //             response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
+                //         } else {
+                //             response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
+                //         }
+                //         write(connfd, response.c_str(), response.length());
+                //         add_match(current_user->name, oponente);
+                //     }
+                //     else {
+                //         string error_message = "reject O convite não pode ser enviado. Tente novamente";
+                //         write(connfd, error_message.c_str(), error_message.length());
                 //     }
                 // }
                 else if (comando.compare("logout") ==0) {

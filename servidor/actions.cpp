@@ -39,6 +39,16 @@ void add_active_user(string username, string ip_addr, string port) {
     userfile.close();
 }
 
+void add_match(string player_name, string challenger_name) {
+    ofstream player_file(MATCHES_PATH + player_name);
+    player_file << challenger_name;
+    player_file.close();
+
+    ofstream challenger_file(MATCHES_PATH + challenger_name);
+    challenger_file << player_name;
+    challenger_file.close();
+}
+
 void remove_active_user(string username) {
     remove(ONLINE_PATH + username);
 }
@@ -51,15 +61,11 @@ string get_user_password(string username) {
 }
 
 void set_user_password(string username, string new_password) {
-    string path = USERS_PATH + username;
-    string temp_path = USERS_PATH + username;
-    ifstream userfile(path);
+    ifstream userfile(USERS_PATH + username);
     string password, points;
     userfile >> password >> points;
     userfile.close();
-    add_new_user(username + "_temp", new_password, points);
-    remove(path);
-    rename(temp_path, path);
+    add_new_user(username, new_password, points);
 }
 
 bool sort_lideres(vector<string> x, vector<string> y) {
@@ -98,16 +104,12 @@ string get_usuarios_ativos() {
 }
 
 void add_points(string username, int points_to_add) {
-    string path = USERS_PATH + username;
-    string temp_path = USERS_PATH + username;
-    ifstream userfile(path);
+    ifstream userfile(USERS_PATH + username);
     string password, points;
     userfile >> password >> points;
     userfile.close();
     points = to_string(stoi(points) + points_to_add);
-    add_new_user(username + "_temp", password, points);
-    remove(path);
-    rename(temp_path, path);
+    add_new_user(username, password, points);
 }
 
 void register_draw(string player_name, string challenger_name) {
