@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <math.h>
 
 #include <iostream>
 #include <string>
@@ -25,11 +26,36 @@ using namespace std;
 
 int clientServerFD;
 int p2pFD;
+int invitesFD;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
+bool isPlaying = false;
+
+std::map<string, int> SYMBOL_TO_INT = {
+    {" ", 0},
+    {"X", 1},
+    {"O", 2},
+};
+string currentGameChar;
+string currentOpponentChar;
+int board = 0;
 
 string PROMPT = "JogoDaVelha> ";
+
+std::map<string, int> COMMAND_TYPES = {
+    {"adduser", 0},
+    {"passwd", 1},
+    {"login", 2},
+    {"leaders", 3},
+    {"list", 4},
+    {"begin", 5},
+    {"send", 6},
+    {"delay", 7},
+    {"end", 8},
+    {"logout", 9},
+    {"exit", 10}
+};
 
 void establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
@@ -65,23 +91,23 @@ void establishServerConnection(int argc, char **argv) {
 void initP2PListener() {
     struct sockaddr_in clientAddress;
 
-    if ( (p2pFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ( (invitesFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(4);
     }
-    fcntl(p2pFD, F_SETFL, O_NONBLOCK);
+    fcntl(invitesFD, F_SETFL, O_NONBLOCK);
 
     bzero(&clientAddress, sizeof(clientAddress));
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     clientAddress.sin_port = htons(0);
 
-    if (bind(p2pFD, (struct sockaddr *) &clientAddress, sizeof(clientAddress)) < 0 ) {
+    if (bind(invitesFD, (struct sockaddr *) &clientAddress, sizeof(clientAddress)) < 0 ) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(5);
     }
 
-    if (listen(p2pFD, LISTENQ) < 0) {
+    if (listen(invitesFD, LISTENQ) < 0) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(6);
     }
@@ -117,6 +143,36 @@ bool wasRequestSuccessful() {
         return false;
     }
     return true;
+}
+
+string inverseSymbol(string symbol) {
+    return symbol == "X" ? "O" : "X";
+}
+
+string getSymbolFromInt(int symbolAsInt) {
+    for (const auto& [key, value] : SYMBOL_TO_INT) {
+        if (value == symbolAsInt) return key;
+    }
+    return " ";
+}
+
+string getPlayerInPosition(int line, int column) {
+    int player;
+
+    player = fmod(board / pow(3, 3 * line + column), 3);
+    return getSymbolFromInt(player);
+}
+
+void updateBoard(string player, int line, int column) {
+    board += pow(3, (3 * (line - 1) + (column - 1))) * (SYMBOL_TO_INT[player]);
+}
+
+void printBoard() {
+    std::cout << " " << getPlayerInPosition(0, 0) << " " << "|" << " " << getPlayerInPosition(0, 1) << " " << "|" << " " << getPlayerInPosition(0, 2) <<std::endl;
+    std::cout << "---+---+---" << std::endl;
+    std::cout << " " << getPlayerInPosition(1, 0) << " " << "|" << " " << getPlayerInPosition(1, 1) << " " << "|" << " " << getPlayerInPosition(1, 2) <<std::endl;
+    std::cout << "---+---+---" << std::endl;
+    std::cout << " " << getPlayerInPosition(2, 0) << " " << "|" << " " << getPlayerInPosition(2, 1) << " " << "|" << " " << getPlayerInPosition(2, 2) <<std::endl;
 }
 
 void handleUserConnectCommand(string command) {
@@ -197,19 +253,81 @@ void handleExitCommand(string command) {
 }
 
 void sendInitialInfoToServer() {
-    struct sockaddr_in p2pSocketAddr;
+    struct sockaddr_in invitesSocketAddr;
     unsigned int sockLen;
-    unsigned short p2pPort;
+    unsigned short invitesPort;
 
-    bzero(&p2pSocketAddr, sizeof(p2pSocketAddr));
-    sockLen = sizeof(p2pSocketAddr);
-    getsockname(p2pFD, (struct sockaddr *) &p2pSocketAddr, &sockLen);
-    p2pPort = ntohs(p2pSocketAddr.sin_port);
+    bzero(&invitesSocketAddr, sizeof(invitesSocketAddr));
+    sockLen = sizeof(invitesSocketAddr);
+    getsockname(invitesFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
+    invitesPort = ntohs(invitesSocketAddr.sin_port);
 
-    std::string info = "info " + std::to_string(p2pPort);
-    write(clientServerFD, info.c_str(), info.length());
-    while (!wasRequestSuccessful()) {
-        write(clientServerFD, info.c_str(), info.length());
+    std::string info = "info " + std::to_string(invitesPort);
+    std::cout << info << std::endl;
+    // write(clientServerFD, info.c_str(), info.length());
+    // while (!wasRequestSuccessful()) {
+    //     write(clientServerFD, info.c_str(), info.length());
+    // }
+}
+
+void waitForOpponentPlay() {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+    vector<string> response;
+
+    std::cout << "Esperando jogada do adversário..." << std::endl;
+    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
+        buffer[n] = '\0';
+        response = convertAndSplit(buffer);
+        updateBoard(currentOpponentChar, stoi(response[1]), stoi(response[2]));
+        printBoard();
+    }
+}
+
+void handleSendCommand(vector<string> command, string fullCommand) {
+    updateBoard(currentGameChar, stoi(command[1]), stoi(command[2]));
+    printBoard();
+    write(p2pFD, fullCommand.c_str(), fullCommand.length());
+    waitForOpponentPlay();
+}
+
+void handleGame(bool firstToPlay) {
+    string gameWelcomeMessage = firstToPlay 
+        ? "Você é o primeiro a jogar. Faça sua jogada"
+        : "Você é o segundo a jogar. Esperando a jogado do outro jogador...";
+    
+    std::cout << gameWelcomeMessage << std::endl;
+    
+    if (!firstToPlay) waitForOpponentPlay();
+    while (isPlaying) {
+        vector<string> command;
+        string fullCommand;
+        
+        getline(std::cin, fullCommand);
+        command = convertAndSplit(fullCommand.data());
+
+        if (command[0] == "send") handleSendCommand(command, fullCommand);
+    }
+}
+
+void waitForInviterConnection() {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    while ( (p2pFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) < 0);
+    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
+        buffer[n] = '\0';
+
+        vector<string> gameInfo = convertAndSplit(buffer);
+        if (gameInfo[0] == "play") {
+            isPlaying = true;
+            board = 0;
+            currentGameChar = gameInfo[1];
+            currentOpponentChar = inverseSymbol(gameInfo[1]);
+            string firstPlayer = gameInfo[2];
+            std::cout << "Jogo INICIADO!" << std::endl;
+            handleGame(firstPlayer == currentGameChar);
+        }
     }
 }
 
@@ -218,10 +336,29 @@ void checkPendingInvite() {
     char buffer[MAXLINE + 1];
     ssize_t n;
 
-    if ((inviteFD = accept(p2pFD, (struct sockaddr *) NULL, NULL)) >= 0) {
-        if ( (n=read(inviteFD, buffer, MAXLINE)) > 0) {
+    if ( (inviteFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+        if ( (n = read(inviteFD, buffer, MAXLINE)) > 0) {
             buffer[n] = '\0';
-            std::cout << "New invite: " << buffer << std::endl;
+
+            vector<string> response = convertAndSplit(buffer);
+            string inviteResponse;
+            if (response[0] == "invite") {
+                string inviter = response[1];
+                std::cout << "Você foi convidado para um jogo por: " << inviter << std::endl;
+                std::cout << "Digite \"aceitar\" para aceitar o convite, qualquer outra coisa para recusar." << std::endl;
+                std::cout << PROMPT;
+                getline(std::cin, inviteResponse);
+                if (inviteResponse == "aceitar") {
+                    inviteResponse = "accept";
+                    write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
+                    std::cout << "Estabelecendo conexão com o jogador " << inviter << ". Aguarde..." << std::endl;
+                    close(inviteFD);
+                    waitForInviterConnection();
+                } else {
+                    inviteResponse = "reject";
+                    write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
+                }
+            };
         }
         close(inviteFD);
     }
@@ -253,7 +390,7 @@ void handleClientCommand() {
                 handleListCommand(command);
                 break;
             case 5:
-                std::cout << "begin" << std::endl;
+                handleBeginCommand(fullCommand);
                 break;
             case 6:
                 std::cout << "send" << std::endl;
