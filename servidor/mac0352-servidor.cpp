@@ -92,7 +92,7 @@ int main (int argc, char **argv) {
     /* Armazena linhas recebidas do cliente */
     char recvline[MAXLINE + 1] = {};
     /* Armazena o tamanho da string lida do cliente */
-    ssize_t n;
+    ssize_t n, hb_n;
 
     signal(SIGINT, server_stop);
 
@@ -220,7 +220,6 @@ int main (int argc, char **argv) {
 
             //HEARTBEATclock_t heartbeat_send_time = clock();
             //HEARTBEATbool heartbeat_sent = false;
-            //HEARTBEATbool heartbeat_received = false;
 
             //HEARTBEATclock_t accept_time;
 
@@ -233,18 +232,25 @@ int main (int argc, char **argv) {
                 n = read(connfd, recvline, MAXLINE);
                 recvline[n] = 0;
 
-                // HEARTBEATif (n == -1 && errno == EAGAIN) {
+                // HEARTBEATif (n == -1 && errno == EAGAIN && !heartbeat_sent) {
                 //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
                 //         write(connfd, "heartbeat", 9);
                 //         heartbeat_send_time = clock();
                 //         heartbeat_sent = true;
                 //         accept_time = clock();
                 //     }
-                //     continue;
                 // }
 
+                // HEARTBEATif (heartbeat_sent) {
+                //         hb_n = read(connfd, recvline, MAXLINE);
+                //         if (hb_n == -1 && errno == EAGAIN);
+                //         else if (hb_n >= 0) {
+                //             heartbeat_sent = false;                
+                //         }
+                //     }
+                // } 
+
                 if (n < 0) {
-                    cout << "Error reading packet";
                     continue;
                 }
 
@@ -464,17 +470,7 @@ int main (int argc, char **argv) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
                     write(connfd, "success", 7);
-                }
-
-                // HEARTBEATif (heartbeat_sent) {
-                //         n = read(connfd, recvline, MAXLINE);
-                //         if (n == -1 && errno == EAGAIN);
-                //         else if (n >= 0) {
-                //             heartbeat_sent = false;
-                //             heartbeat_received = true;                   
-                //         }
-                //     }
-                // }     
+                }    
             }
             /* ========================================================= */
             /* ========================================================= */
