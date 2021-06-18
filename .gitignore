@@ -34,8 +34,8 @@
 # vscode
 *.vscode
 
-# programa teste
-test
+# tests
+test*
 
 #diretorios do servidor
 servidor/users

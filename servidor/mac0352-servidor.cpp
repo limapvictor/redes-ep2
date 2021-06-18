@@ -28,6 +28,8 @@ typedef struct usuario {
     string port;
     bool is_playing;
     string challenger_name;
+    string challenger_ip_address;
+    string challenger_port;
 } usuario;
 
 typedef usuario* user;
@@ -226,7 +228,9 @@ int main (int argc, char **argv) {
             for (;;) {
 
                 // if (heartbeat_sent && ((float) ((clock() - accept_time) / CLOCKS_PER_SEC) > 180)) {
-                //     handleClientCrash();
+                //     if (current_user->logged_in) logout(current_user);
+                //     log_client_crash(ip_addr);
+                //     break;
                 // }
                     
                 n = read(connfd, recvline, MAXLINE);
@@ -407,6 +411,8 @@ int main (int argc, char **argv) {
                 //     }
                 //     else if (answer.compare("accept") == 0) {
                 //         current_user->challenger_name = oponente;
+                //         current_user->challenger_ip_address = client_info->ip_addr;
+                //         current_user->challenger_port = client_info->port;
                 //         current_user->is_playing = true;
                 //         string player_symbol, opponent_symbol;
                 //         if ((rand() % 2) == 0) {
@@ -456,10 +462,16 @@ int main (int argc, char **argv) {
                         string player = mensagem[2];
                         string oponente = mensagem[3];
                         register_draw(player, oponente);
+                        log_draw(player, oponente, current_user->ip_address, current_user->challenger_ip_address);
                     }
                     else if (status.compare("victory") == 0) {
                         string winner = mensagem[2];
                         register_win(winner);
+                        if (winner.compare(current_user->name) == 0) {
+                            log_player_win(winner, current_user->challenger_name, current_user->ip_address, current_user->challenger_ip_address);
+                        } else {
+                            log_player_win(winner, current_user->name, current_user->challenger_ip_address, current_user->ip_address);
+                        }
                     }
 
                     current_user->is_playing = false;
@@ -482,6 +494,7 @@ int main (int argc, char **argv) {
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
+            close(connfd);
             std::exit(0);
         }
         else
