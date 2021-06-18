@@ -226,7 +226,8 @@ int main (int argc, char **argv) {
             for (;;) {
 
                 // if (heartbeat_sent && ((float) ((clock() - accept_time) / CLOCKS_PER_SEC) > 180)) {
-                //     handleClientCrash();
+                //     if (current_user->logged_in) logout(current_user);
+                //     break;
                 // }
                     
                 n = read(connfd, recvline, MAXLINE);
@@ -482,6 +483,7 @@ int main (int argc, char **argv) {
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
+            close(connfd);
             std::exit(0);
         }
         else
