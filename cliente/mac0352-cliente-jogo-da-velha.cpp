@@ -57,6 +57,8 @@ std::map<string, int> COMMAND_TYPES = {
     {"exit", 10}
 };
 
+void handleGame(bool firstPlayer);
+
 void establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
    
@@ -86,6 +88,30 @@ void establishServerConnection(int argc, char **argv) {
 
     isClientConnected = true;
     std::cout << "-------------------------JV's-------------------------" << std::endl;
+}
+
+bool establishP2PConnection(string peerIpAddress, string peerPort) {
+    struct sockaddr_in peerAddress;
+   
+    if ( (p2pFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        std::cerr << "Erro interno de rede. Tente novamente mais tarde" << std::endl;
+        return false;
+    }
+   
+   bzero(&peerAddress, sizeof(peerAddress));
+   peerAddress.sin_family = AF_INET;
+   peerAddress.sin_port = htons(std::stoi(peerPort.c_str()));
+
+    if (inet_pton(AF_INET, peerIpAddress.c_str(), &peerAddress.sin_addr) <= 0) {
+        std::cerr << "Erro interno de rede. Tente novamente mais tarde" << std::endl;
+        return false;
+    }
+   
+    if (connect(p2pFD, (struct sockaddr *) &peerAddress, sizeof(peerAddress)) < 0) {
+        std::cerr << "Não foi possível estabelecer conexão com o convidado. Tente novamente mais tarde" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 void initP2PListener() {
@@ -283,6 +309,16 @@ void handleInviteResponse() {
         std::cerr << error << std::endl;
         return;
     }
+    if (!establishP2PConnection(response[1], response[2])) return;
+    
+    currentGameChar = response[3];
+    currentOpponentChar = inverseSymbol(currentGameChar);
+    string firstToPlay = response[4];
+    std::cout << currentGameChar << currentOpponentChar << firstToPlay << std::endl;
+    string gameInitMessage = "play " + currentOpponentChar + " " + firstToPlay;
+    isPlaying = true;
+    write(p2pFD, gameInitMessage.c_str(), gameInitMessage.length());
+    handleGame(currentGameChar == firstToPlay);
 }
 
 void handleBeginCommand(string command) {
@@ -338,10 +374,10 @@ void sendInitialInfoToServer() {
 
     std::string info = "info " + std::to_string(invitesPort);
     std::cout << info << std::endl;
-    // write(clientServerFD, info.c_str(), info.length());
-    // while (!wasRequestSuccessful()) {
-    //     write(clientServerFD, info.c_str(), info.length());
-    // }
+    write(clientServerFD, info.c_str(), info.length());
+    while (!wasRequestSuccessful()) {
+        write(clientServerFD, info.c_str(), info.length());
+    }
 }
 
 void waitForOpponentPlay() {
@@ -438,6 +474,7 @@ void checkPendingInvite() {
                 getline(std::cin, inviteResponse);
                 if (inviteResponse == "aceitar") {
                     inviteResponse = "accept";
+                    std::cout << inviteResponse.c_str() << std::endl;
                     write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
                     std::cout << "Estabelecendo conexão com o jogador " << inviter << ". Aguarde..." << std::endl;
                     close(inviteFD);
@@ -479,9 +516,6 @@ void handleClientCommand() {
                 break;
             case 5:
                 handleBeginCommand(fullCommand);
-                break;
-            case 6:
-                std::cout << "send" << std::endl;
                 break;
             case 9:
                 handleLogoutCommand(command);
