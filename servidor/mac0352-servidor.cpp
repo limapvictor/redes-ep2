@@ -94,7 +94,7 @@ int main (int argc, char **argv) {
     /* Armazena linhas recebidas do cliente */
     char recvline[MAXLINE + 1] = {};
     /* Armazena o tamanho da string lida do cliente */
-    ssize_t n, hb_n;
+    ssize_t n;
 
     signal(SIGINT, server_stop);
 
@@ -363,79 +363,80 @@ int main (int argc, char **argv) {
                         write(connfd, ativos.c_str(), ativos.length());
                     }
                 }
-                // else if (comando.compare("begin") == 0) {
+                else if (comando.compare("begin") == 0) {
 
-                //     if (!(current_user->logged_in)) {
-                //         string error_message = "error Você deve estar logado para iniciar uma partida";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //         continue;
-                //     }
+                    if (!(current_user->logged_in)) {
+                        string error_message = "error Você deve estar logado para iniciar uma partida";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        continue;
+                    }
 
-                //     string oponente = mensagem[1];
-                //     bool exists = check_user_exists(oponente);
-                //     if (!exists) {
-                //         string error_message = "error Esse usuário não existe";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //         continue;
-                //     }
+                    string oponente = mensagem[1];
+                    bool exists = check_user_exists(oponente);
+                    if (!exists) {
+                        string error_message = "error Esse usuário não existe";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        continue;
+                    }
 
-                //     bool online = check_user_online(oponente);
-                //     if (!online) {
-                //         string error_message = "error Esse jogador não está online agora";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //         continue;
-                //     }
+                    bool online = check_user_online(oponente);
+                    if (!online) {
+                        string error_message = "error Esse jogador não está online agora";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        continue;
+                    }
 
-                //     bool is_playing = check_user_playing(oponente);
-                //     if (is_playing) {
-                //         string error_message = "error Esse jogador já está em uma partida";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //         continue;
-                //     }
+                    bool is_playing = check_user_playing(oponente);
+                    if (is_playing) {
+                        string error_message = "error Esse jogador já está em uma partida";
+                        write(connfd, error_message.c_str(), error_message.length());
+                        continue;
+                    }
 
-                //     net_addr client_info = get_user_net_info(oponente);
+                    net_addr client_info = get_user_net_info(oponente);
 
-                //     int sockfd = invite_player(connfd, client_info->ip_addr, client_info->port);
+                    int sockfd = invite_player(connfd, client_info->ip_addr, client_info->port);
 
-                //     string invite = "invite " + current_user->name;
-                //     write(sockfd, invite.c_str(), invite.length());
+                    string invite = "invite " + current_user->name;
+                    write(sockfd, invite.c_str(), invite.length());
 
-                //     n = read(sockfd, recvline, MAXLINE);
+                    n = read(sockfd, recvline, MAXLINE);
+                    recvline[n] = '\0';
 
-                //     vector<string> answer_message = convertAndSplit(recvline);
-                //     string answer = answer_message[0];
+                    vector<string> answer_message = convertAndSplit(recvline);
+                    string answer = answer_message[0];
 
-                //     if (answer.compare("reject") == 0) {
-                //         string error_message = "reject O jogador recusou o convite";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //     }
-                //     else if (answer.compare("accept") == 0) {
-                //         current_user->challenger_name = oponente;
-                //         current_user->challenger_ip_address = client_info->ip_addr;
-                //         current_user->challenger_port = client_info->port;
-                //         current_user->is_playing = true;
-                //         string player_symbol, opponent_symbol;
-                //         if ((rand() % 2) == 0) {
-                //             player_symbol = "X";
-                //             opponent_symbol = "O";
-                //         } else {
-                //             player_symbol = "O";
-                //             opponent_symbol = "X";
-                //         }
-                //         string response = "accept " + client_info->ip_addr + " " + client_info->port + " ";
-                //         if ((rand() % 2) == 0) {
-                //             response = response + current_user->name + " " + player_symbol + " " + oponente + " " + opponent_symbol;
-                //         } else {
-                //             response = response + oponente + " " + opponent_symbol + " " + current_user->name + " " + player_symbol;
-                //         }
-                //         write(connfd, response.c_str(), response.length());
-                //         add_match(current_user->name, oponente);
-                //     }
-                //     else {
-                //         string error_message = "reject O convite não pode ser enviado. Tente novamente";
-                //         write(connfd, error_message.c_str(), error_message.length());
-                //     }
-                // }
+                    if (answer.compare("reject") == 0) {
+                        string error_message = "reject O jogador recusou o convite";
+                        write(connfd, error_message.c_str(), error_message.length());
+                    }
+                    else if (answer.compare("accept") == 0) {
+                        current_user->challenger_name = oponente;
+                        current_user->challenger_ip_address = client_info->ip_addr;
+                        current_user->challenger_port = client_info->port;
+                        current_user->is_playing = true;
+                        string player_symbol, opponent_symbol;
+                        if ((rand() % 2) == 0) {
+                            player_symbol = "X";
+                            opponent_symbol = "O";
+                        } else {
+                            player_symbol = "O";
+                            opponent_symbol = "X";
+                        }
+                        string response = "accept " + client_info->ip_addr + " " + client_info->port + " " + player_symbol;
+                        if ((rand() % 2) == 0) {
+                            response = response + " " + opponent_symbol;
+                        } else {
+                            response = response + " " + player_symbol;
+                        }
+                        write(connfd, response.c_str(), response.length());
+                        add_match(current_user->name, oponente);
+                    }
+                    else {
+                        string error_message = "reject O convite não pode ser enviado. Tente novamente";
+                        write(connfd, error_message.c_str(), error_message.length());
+                    }
+                }
                 else if (comando.compare("logout") ==0) {
 
                     if (!(current_user->logged_in)) {
