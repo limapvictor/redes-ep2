@@ -208,6 +208,10 @@ void printBoard() {
     std::cout << " " << getPlayerInPosition(2, 0) << " " << "|" << " " << getPlayerInPosition(2, 1) << " " << "|" << " " << getPlayerInPosition(2, 2) <<std::endl;
 }
 
+void handleInvalidCommand() {
+    std::cout << "O comando digitado não existe ou não está disponível no momento. Tente novamente." << std::endl;
+}
+
 void handleUserConnectCommand(string command) {
     if (isUserLoggedIn) {
         std::cerr << "Você já está logado." << std::endl;
@@ -260,6 +264,43 @@ void handleListCommand(string command) {
         return;
     }
     std::cout << response.substr(7) << std::endl;
+}
+
+void handleInviteResponse() {
+    char buffer[MAXLINE + 1];
+    int bufferSize;
+
+    if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
+        std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
+        return;
+    }
+
+    buffer[bufferSize] = '\0';
+    vector<string> response = convertAndSplit(buffer);
+    if (response[0] == "error" || response[0] == "reject") {
+        string error(buffer);
+        error = error.substr(response[0].length());
+        std::cerr << error << std::endl;
+        return;
+    }
+}
+
+void handleBeginCommand(string command) {
+    if (!isUserLoggedIn) {
+        std::cerr << "Você deve estar logado para iniciar uma partida." << std::endl;
+        return;
+    }
+
+    std::regex commandValidator("(begin) [A-z0-9]{3,16}");
+    if (!std::regex_match(command, commandValidator)) {
+        std::cerr << "Comando invalido. Tente novamente" << std::endl;
+        return;
+    }
+
+    write(clientServerFD, command.c_str(), command.length());
+    std::cout << "Convite enviado para o servidor!" << std::endl;
+    std::cout << "Esperando resposta..." << std::endl;
+    handleInviteResponse();
 }
 
 void handleLogoutCommand(string command) {
@@ -327,6 +368,12 @@ void handleSendCommand(vector<string> command, string fullCommand) {
     waitForOpponentPlay();
 }
 
+void handleEndCommand(string command) {
+    write(p2pFD, command.c_str(), command.length());
+    isPlaying = false;
+    std::cout << "Saindo do jogo..." << std::endl;
+}
+
 void handleGame(bool firstToPlay) {
     string gameWelcomeMessage = firstToPlay 
         ? "Você é o primeiro a jogar. Faça sua jogada"
@@ -344,7 +391,11 @@ void handleGame(bool firstToPlay) {
         command = convertAndSplit(fullCommand.data());
 
         if (command[0] == "send") handleSendCommand(command, fullCommand);
+        else if (command[0] == "end") handleEndCommand(command[0]);
+        // else if (command[0] == "delay") handleDelayCommand(command[0]);
+        else handleInvalidCommand();
     }
+    close(p2pFD);
 }
 
 void waitForInviterConnection() {
