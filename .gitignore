@@ -44,5 +44,10 @@ servidor/matches
 servidor/servidor
 servidor/log
 
+users
+online
+matches
+log
+
 #executaveis
 *jogo-da-velha

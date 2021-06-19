@@ -17,6 +17,8 @@
 #include <map>
 #include <regex>
 
+#include <openssl/ssl.h>
+
 #include "../utils.hpp"
 
 using namespace std;
@@ -27,6 +29,9 @@ using namespace std;
 int clientServerFD;
 int p2pFD;
 int invitesFD;
+
+SSL* ssl;
+SSL_CTX* ctx;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
@@ -59,8 +64,13 @@ std::map<string, int> COMMAND_TYPES = {
 
 void handleGame(bool firstPlayer);
 
+SSL_CTX* createClientSSLContext();
+
 void establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
+    SSL_library_init();
+
+    ctx = createClientSSLContext();
    
     if (argc != 3) {
         fprintf(stderr, "O cliente do jogo da velha deve ser chamado com: %s <SERVER IP ADDRESS> <SERVER PORT>\n", argv[0]);
@@ -85,6 +95,12 @@ void establishServerConnection(int argc, char **argv) {
         fprintf(stderr,"Não foi possível se conectar com o servidor. Tente novamente mais tarde,\n");
         std::exit(3);
     }
+
+    ssl = SSL_new(ctx);
+
+    SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
+    SSL_set_fd(ssl, clientServerFD); 
+    SSL_connect(ssl);
 
     isClientConnected = true;
     std::cout << "-------------------------JV's-------------------------" << std::endl;
@@ -147,7 +163,7 @@ string getServerResponse() {
         std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
         return std::string();
     }
-
+    cout << bufferSize << endl;
     buffer[bufferSize] = '\0';
     return std::string(buffer);
 }
@@ -250,7 +266,8 @@ void handleUserConnectCommand(string command) {
         return;
     }
     
-    write(clientServerFD, command.c_str(), command.length());
+    write(clientServerFD, "encrypted", 9);
+    SSL_write(ssl, command.c_str(), command.length());
     if (wasRequestSuccessful()) {
         std::cout << "Login realizado com sucesso!\nAgora você pode convidar/ser convidado para uma partida." << std::endl;
         isUserLoggedIn = true;
@@ -269,7 +286,8 @@ void handlePasswdCommand(string command) {
         return;
     }
     
-    write(clientServerFD, command.c_str(), command.length());
+    write(clientServerFD, "encrypted", 9);
+    SSL_write(ssl, command.c_str(), command.length());
     if (wasRequestSuccessful()) {
         std::cout << "Senha trocada com sucesso." << std::endl;
     }
@@ -357,7 +375,9 @@ void handleExitCommand(string command) {
         std::cout << "Saindo do jogo..." << std::endl;
     }
 
+    SSL_free(ssl);
     close(clientServerFD);
+    SSL_CTX_free(ctx); 
     isClientConnected = false;
 }
 
@@ -372,7 +392,6 @@ void sendInitialInfoToServer() {
     invitesPort = ntohs(invitesSocketAddr.sin_port);
 
     std::string info = "info " + std::to_string(invitesPort);
-    std::cout << info << std::endl;
     write(clientServerFD, info.c_str(), info.length());
     while (!wasRequestSuccessful()) {
         write(clientServerFD, info.c_str(), info.length());
@@ -564,6 +583,16 @@ void handleConnectedClient() {
         std::cout << PROMPT;
         handleClientCommand();
     }
+}
+
+SSL_CTX* createClientSSLContext() {
+    SSL_CTX *ctx;
+
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    ctx = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    return ctx;
 }
 
 int main(int argc, char **argv) {

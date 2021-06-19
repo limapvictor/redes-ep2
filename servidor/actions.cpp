@@ -111,8 +111,8 @@ string get_usuarios_ativos() {
     for (const auto & file : directory_iterator("./online")) {
         string username = file.path().filename().replace_extension("");
         string condition;
-        if (check_user_playing(username)) condition = " -> In a match";
-        else condition = " -> Not playing";
+        if (check_user_playing(username)) condition = " -> Em uma partida";
+        else condition = " -> Não está jogando";
         ativos = ativos + '\n' + username + condition;
     }
     return ativos;
