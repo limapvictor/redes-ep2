@@ -53,6 +53,28 @@ void server_stop(int signum) {
     std::exit(0);
 }
 
+int create_hb_socket(string ip_addr, string port) {
+    int sockfd;
+    struct sockaddr_in hb_clientaddr;
+
+    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        return -1;
+    }
+    
+    bzero(&hb_clientaddr, sizeof(hb_clientaddr));
+    hb_clientaddr.sin_family = AF_INET;
+    hb_clientaddr.sin_port = htons(stoi(port));
+
+    if (inet_pton(AF_INET, ip_addr.c_str(), &hb_clientaddr.sin_addr) <= 0) {
+        return -1;
+    }
+    
+    if (connect(sockfd, (struct sockaddr *) &hb_clientaddr, sizeof(hb_clientaddr)) < 0) {
+        return -1;
+    }
+    return sockfd;
+}
+
 int invite_player(int connfd, string ip_addr, string port) {
     int sockfd;
     struct sockaddr_in other_clientaddr;
@@ -196,6 +218,12 @@ int main (int argc, char **argv) {
 
             write(connfd, "success", 7);
             string port = info_message[1];
+
+            //HEARTBEAT
+            //string hb_port = info_message[1];
+            //string player_port = info_message[2];
+
+            //int hb_fd = create_hb_socket(ip_addr, hb_port);
          
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
@@ -219,11 +247,14 @@ int main (int argc, char **argv) {
              * para que este servidor consiga interpretar comandos MQTT  */
 
             //HEARTBEATfcntl(connfd, F_SETFL, O_NONBLOCK);
+            //HEARTBEATfcntl(hb_fd, F_SETFL, O_NONBLOCK);
 
             //HEARTBEATclock_t heartbeat_send_time = clock();
             //HEARTBEATbool heartbeat_sent = false;
 
             //HEARTBEATclock_t accept_time;
+
+            //int hb_fd;
 
             for (;;) {
 
@@ -238,7 +269,7 @@ int main (int argc, char **argv) {
 
                 // HEARTBEATif (n == -1 && errno == EAGAIN && !heartbeat_sent) {
                 //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
-                //         write(connfd, "heartbeat", 9);
+                //         write(hb_fd, "heartbeat", 9);
                 //         heartbeat_send_time = clock();
                 //         heartbeat_sent = true;
                 //         accept_time = clock();
@@ -246,7 +277,7 @@ int main (int argc, char **argv) {
                 // }
 
                 // HEARTBEATif (heartbeat_sent) {
-                //         hb_n = read(connfd, recvline, MAXLINE);
+                //         hb_n = read(hb_fd, recvline, MAXLINE);
                 //         if (hb_n == -1 && errno == EAGAIN);
                 //         else if (hb_n >= 0) {
                 //             heartbeat_sent = false;                
