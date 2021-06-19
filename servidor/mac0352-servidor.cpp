@@ -522,10 +522,8 @@ int main (int argc, char **argv) {
                     string status = mensagem[1];
 
                     if (status.compare("draw") == 0) {
-                        string player = mensagem[2];
-                        string oponente = mensagem[3];
-                        register_draw(player, oponente);
-                        log_draw(player, oponente, current_user->ip_address, current_user->challenger_ip_address);
+                        register_draw(current_user->name, current_user->challenger_name);
+                        log_draw(current_user->name, current_user->challenger_name, current_user->ip_address, current_user->challenger_ip_address);
                     }
                     else if (status.compare("victory") == 0) {
                         register_win(current_user->name);
