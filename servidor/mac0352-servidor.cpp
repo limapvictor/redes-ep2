@@ -515,7 +515,16 @@ int main (int argc, char **argv) {
                     current_user->is_playing = false;
                     current_user->challenger_name = "";
                     write(connfd, "success", 7);
-                }    
+                }
+                else if (comando.compare("begingame") == 0) {
+                    string oponente = mensagem[1];
+
+                    net_addr challenger_info = get_user_net_info(oponente);
+                    current_user->challenger_name = oponente;
+                    current_user->challenger_ip_address = challenger_info->ip_addr;
+                    current_user->challenger_port = challenger_info->port;
+                    current_user->is_playing = true;
+                } 
             }
             /* ========================================================= */
             /* ========================================================= */
