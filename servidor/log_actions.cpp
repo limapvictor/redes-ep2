@@ -65,6 +65,12 @@ void log_login_success(string username, string ip_addr){
     logfile << "Usuário " + username + " logado com sucesso. (IP " + ip_addr + ")\n";
 }
 
+void log_match_start(string player1, string player2, string ip1, string ip2) {
+
+    ofstream logfile(LOGPATH, ios_base::app);
+    logfile << "Uma partida entre o usuário " + player1 + " (IP " + ip1 + ") e o usuário " + player2 + " (IP " + ip2 + ") foi iniciada.\n";
+}
+
 void log_player_win(string winner, string loser, string ip_winner, string ip_loser) {
 
     ofstream logfile(LOGPATH, ios_base::app);

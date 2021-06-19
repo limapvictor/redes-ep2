@@ -462,6 +462,7 @@ int main (int argc, char **argv) {
                         }
                         write(connfd, response.c_str(), response.length());
                         add_match(current_user->name, oponente);
+                        log_match_start(current_user->name, oponente, current_user->ip_address, current_user->challenger_ip_address);
                     }
                     else {
                         string error_message = "reject O convite não pode ser enviado. Tente novamente";
