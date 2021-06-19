@@ -20,6 +20,8 @@ void add_active_user(string username, string ip_addr, string port);
 
 void add_match(string player_name, string challenger_name);
 
+void remove_match(string player_name, string challenger_name);
+
 void remove_active_user(string username);
 
 string get_user_password(string username);

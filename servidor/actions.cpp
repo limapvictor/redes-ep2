@@ -49,6 +49,11 @@ void add_match(string player_name, string challenger_name) {
     challenger_file.close();
 }
 
+void remove_match(string player_name, string challenger_name) {
+    remove(MATCHES_PATH + player_name);
+    remove(MATCHES_PATH + challenger_name);
+}
+
 void remove_active_user(string username) {
     remove(ONLINE_PATH + username);
 }

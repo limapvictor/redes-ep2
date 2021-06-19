@@ -528,17 +528,13 @@ int main (int argc, char **argv) {
                         log_draw(player, oponente, current_user->ip_address, current_user->challenger_ip_address);
                     }
                     else if (status.compare("victory") == 0) {
-                        string winner = mensagem[2];
-                        register_win(winner);
-                        if (winner.compare(current_user->name) == 0) {
-                            log_player_win(winner, current_user->challenger_name, current_user->ip_address, current_user->challenger_ip_address);
-                        } else {
-                            log_player_win(winner, current_user->name, current_user->challenger_ip_address, current_user->ip_address);
-                        }
+                        register_win(current_user->name);
+                        log_player_win(current_user->name, current_user->challenger_name, current_user->ip_address, current_user->challenger_ip_address);
                     }
 
                     current_user->is_playing = false;
                     write(connfd, "success", 7);
+                    remove_match(current_user->name, current_user->challenger_name);
                 }
                 else if (comando.compare("endgame")) {
 
