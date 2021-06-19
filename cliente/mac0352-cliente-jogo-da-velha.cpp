@@ -314,7 +314,6 @@ void handleInviteResponse() {
     currentGameChar = response[3];
     currentOpponentChar = inverseSymbol(currentGameChar);
     string firstToPlay = response[4];
-    std::cout << currentGameChar << currentOpponentChar << firstToPlay << std::endl;
     string gameInitMessage = "play " + currentOpponentChar + " " + firstToPlay;
     isPlaying = true;
     write(p2pFD, gameInitMessage.c_str(), gameInitMessage.length());
@@ -380,6 +379,30 @@ void sendInitialInfoToServer() {
     }
 }
 
+void checkGameEnd(bool myPlay) {
+    int gameResult;
+    string resultToServer;
+
+    if ( (gameResult = getGameCurrentResult()) < 0) return;
+    
+    if (gameResult == 0) {
+        std::cout << "Jogo EMPATADO!" << std::endl;
+        resultToServer = myPlay ? "result draw" : "endgame";
+    } else if (gameResult == SYMBOL_TO_INT[currentGameChar]) {
+        std::cout << "VITÓRIA!!" << std::endl;
+        resultToServer = "result victory";
+    } else {
+        std::cout << "Vitória do OPONENTE!!" << std::endl;
+        resultToServer = "endgame";
+    }
+    
+    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
+    wasRequestSuccessful();
+
+    isPlaying = false;
+    std::cout << "Saindo do jogo..." << std::endl;
+}
+
 void waitForOpponentPlay() {
     char buffer[MAXLINE + 1];
     ssize_t n;
@@ -392,16 +415,16 @@ void waitForOpponentPlay() {
         response = convertAndSplit(buffer);
         updateBoard(currentOpponentChar, stoi(response[1]), stoi(response[2]));
         printBoard();
-        std::cout << "Resultado do jogo: " << getGameCurrentResult() << std::endl;
+        checkGameEnd(false);
     }
 }
 
 void handleSendCommand(vector<string> command, string fullCommand) {
     updateBoard(currentGameChar, stoi(command[1]), stoi(command[2]));
     printBoard();
-    std::cout << "Resultado do jogo: " << getGameCurrentResult() << std::endl;
     write(p2pFD, fullCommand.c_str(), fullCommand.length());
-    waitForOpponentPlay();
+    checkGameEnd(true);
+    if (isPlaying) waitForOpponentPlay();
 }
 
 void handleEndCommand(string command) {
@@ -413,7 +436,7 @@ void handleEndCommand(string command) {
 void handleGame(bool firstToPlay) {
     string gameWelcomeMessage = firstToPlay 
         ? "Você é o primeiro a jogar. Faça sua jogada"
-        : "Você é o segundo a jogar. Esperando a jogado do outro jogador...";
+        : "Você é o segundo a jogar. Espere a jogada do outro jogador.";
     
     std::cout << gameWelcomeMessage << std::endl;
     
@@ -434,7 +457,7 @@ void handleGame(bool firstToPlay) {
     close(p2pFD);
 }
 
-void waitForInviterConnection() {
+void waitForInviterConnection(string inviter) {
     char buffer[MAXLINE + 1];
     ssize_t n;
 
@@ -450,6 +473,8 @@ void waitForInviterConnection() {
             currentOpponentChar = inverseSymbol(gameInfo[1]);
             string firstPlayer = gameInfo[2];
             std::cout << "Jogo INICIADO!" << std::endl;
+            string startGane = "startgame " + inviter;
+            write(clientServerFD, startGane.c_str(), startGane.length());
             handleGame(firstPlayer == currentGameChar);
         }
     }
@@ -478,7 +503,7 @@ void checkPendingInvite() {
                     write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
                     std::cout << "Estabelecendo conexão com o jogador " << inviter << ". Aguarde..." << std::endl;
                     close(inviteFD);
-                    waitForInviterConnection();
+                    waitForInviterConnection(inviter);
                 } else {
                     inviteResponse = "reject";
                     write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
@@ -499,31 +524,35 @@ void handleClientCommand() {
         ? fullCommand.substr(0, commandDelimiter) 
         : fullCommand;
 
-    if (COMMAND_TYPES.count(command) > 0) {
-        switch (COMMAND_TYPES[command]) {
-            case 0:
-            case 2:
-                handleUserConnectCommand(fullCommand);
-                break;
-            case 1:
-                handlePasswdCommand(fullCommand);
-                break;
-            case 3:
-                std::cout << "leaders" << std::endl;
-                break;
-            case 4:
-                handleListCommand(command);
-                break;
-            case 5:
-                handleBeginCommand(fullCommand);
-                break;
-            case 9:
-                handleLogoutCommand(command);
-                break;
-            case 10:
-                handleExitCommand(command);
-                break;
-        }
+
+    if (COMMAND_TYPES.count(command) <= 0) {
+        handleInvalidCommand();
+        return;
+    }
+    
+    switch (COMMAND_TYPES[command]) {
+        case 0:
+        case 2:
+            handleUserConnectCommand(fullCommand);
+            break;
+        case 1:
+            handlePasswdCommand(fullCommand);
+            break;
+        case 3:
+            std::cout << "leaders" << std::endl;
+            break;
+        case 4:
+            handleListCommand(command);
+            break;
+        case 5:
+            handleBeginCommand(fullCommand);
+            break;
+        case 9:
+            handleLogoutCommand(command);
+            break;
+        case 10:
+            handleExitCommand(command);
+            break;
     }
 }
 

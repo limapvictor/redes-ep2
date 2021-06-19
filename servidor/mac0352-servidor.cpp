@@ -104,15 +104,15 @@ int invite_player(int connfd, string ip_addr, string port) {
     return sockfd;
 }
 
-SSL_CTX* create_server_ssl_context() {
-    SSL_CTX *ctx;
+// SSL_CTX* create_server_ssl_context() {
+//     SSL_CTX *ctx;
 
-    OpenSSL_add_all_algorithms();  /* load & register all cryptos, etc. */
-    SSL_load_error_strings();   /* load all error messages */
-    ctx = SSL_CTX_new(TLS_server_method());   /* create new context from method */
-    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-    return ctx;
-}
+//     OpenSSL_add_all_algorithms();  /* load & register all cryptos, etc. */
+//     SSL_load_error_strings();   /* load all error messages */
+//     ctx = SSL_CTX_new(TLS_server_method());   /* create new context from method */
+//     SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+//     return ctx;
+// }
 
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -213,25 +213,25 @@ int main (int argc, char **argv) {
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
 
-            int res = getpeername(connfd, (struct sockaddr *)&clientaddr, &clientaddr_size);
+            getpeername(connfd, (struct sockaddr *)&clientaddr, &clientaddr_size);
             string ip_addr = inet_ntoa(clientaddr.sin_addr);
 
             log_client_connected(ip_addr);
 
-            SSL* ssl;
-            int sd;
-            SSL_library_init();
+            // SSL* ssl;
+            // int sd;
+            // SSL_library_init();
 
-            SSL_CTX* ctx = create_server_ssl_context();
+            // SSL_CTX* ctx = create_server_ssl_context();
 
-            SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
-            SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
-            ssl = SSL_new(ctx);              /* get new SSL state with context */
+            // SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
+            // SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
+            // ssl = SSL_new(ctx);              /* get new SSL state with context */
 
-            SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
-            SSL_set_fd(ssl, connfd);      /* set connection socket to SSL state */
+            // SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
+            // SSL_set_fd(ssl, connfd);      /* set connection socket to SSL state */
 
-            SSL_accept(ssl);
+            // SSL_accept(ssl);
 
             n = read(connfd, recvline, MAXLINE);
 
@@ -317,11 +317,11 @@ int main (int argc, char **argv) {
 
                 vector<string> mensagem = convertAndSplit(recvline);
                 string comando = mensagem[0];
-                if (comando.compare("encrypted") == 0) {
-                    n = SSL_read(ssl, recvline, MAXLINE);
-                    mensagem = convertAndSplit(recvline);
-                    comando = mensagem[0];
-                }
+                // if (comando.compare("encrypted") == 0) {
+                //     n = SSL_read(ssl, recvline, MAXLINE);
+                //     mensagem = convertAndSplit(recvline);
+                //     comando = mensagem[0];
+                // }
 
                 if (comando.compare("adduser") == 0) {
 
@@ -534,12 +534,12 @@ int main (int argc, char **argv) {
                     write(connfd, "success", 7);
                     remove_match(current_user->name, current_user->challenger_name);
                 }
-                else if (comando.compare("endgame")) {
+                else if (comando.compare("endgame") == 0) {
 
                     current_user->is_playing = false;
                     write(connfd, "success", 7);
                 }
-                else if (comando.compare("begingame") == 0) {
+                else if (comando.compare("startgame") == 0) {
                     string oponente = mensagem[1];
 
                     net_addr challenger_info = get_user_net_info(oponente);
@@ -547,7 +547,7 @@ int main (int argc, char **argv) {
                     current_user->challenger_ip_address = challenger_info->ip_addr;
                     current_user->challenger_port = challenger_info->port;
                     current_user->is_playing = true;
-                } 
+                }
             }
             /* ========================================================= */
             /* ========================================================= */
@@ -557,11 +557,11 @@ int main (int argc, char **argv) {
 
             log_client_disconnected(ip_addr);
 
-            sd = SSL_get_fd(ssl);       /* get socket connection */
-            SSL_free(ssl);         /* release SSL state */
-            close(sd);
+            // sd = SSL_get_fd(ssl);       /* get socket connection */
+            // SSL_free(ssl);         /* release SSL state */
+            // close(sd);
 
-            SSL_CTX_free(ctx);
+            // SSL_CTX_free(ctx);
             /* Após ter feito toda a troca de informação com o cliente,
              * pode finalizar o processo filho */
             printf("[Uma conexão fechada]\n");
