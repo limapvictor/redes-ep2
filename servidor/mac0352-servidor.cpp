@@ -110,6 +110,7 @@ int main (int argc, char **argv) {
     /* Informações sobre o socket (endereço e porta) ficam nesta struct */
     struct sockaddr_in servaddr;
     struct sockaddr_in clientaddr;
+    socklen_t clientaddr_size = sizeof(struct sockaddr_in);
     /* Retorno da função fork para saber quem é o processo filho e
      * quem é o processo pai */
     pid_t childpid;
@@ -172,7 +173,6 @@ int main (int argc, char **argv) {
    
     /* O servidor no final das contas é um loop infinito de espera por
      * conexões e processamento de cada uma individualmente */
-    bzero(&clientaddr, sizeof(clientaddr));
 	for (;;) {
         /* O socket inicial que foi criado é o socket que vai aguardar
          * pela conexão na porta especificada. Mas pode ser que existam
@@ -202,8 +202,8 @@ int main (int argc, char **argv) {
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
 
-            //string ip_addr = inet_ntoa(clientaddr.sin_addr);
-            string ip_addr = "127.0.0.1";
+            int res = getpeername(connfd, (struct sockaddr *)&clientaddr, &clientaddr_size);
+            string ip_addr = inet_ntoa(clientaddr.sin_addr);
 
             log_client_connected(ip_addr);
 
@@ -484,7 +484,6 @@ int main (int argc, char **argv) {
 
                     logout(current_user);
                     write(connfd, "success", 7);
-                    close(connfd);
                     break;
                 }
                 else if (comando.compare("result") == 0) {
@@ -513,7 +512,6 @@ int main (int argc, char **argv) {
                 else if (comando.compare("endgame")) {
 
                     current_user->is_playing = false;
-                    current_user->challenger_name = "";
                     write(connfd, "success", 7);
                 }
                 else if (comando.compare("begingame") == 0) {
