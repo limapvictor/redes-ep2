@@ -24,7 +24,7 @@ int getIntFromPlayerSymbol(string symbol) {
 string getPlayerInPosition(int line, int column) {
     int player;
 
-    player = fmod(board / pow(3, 3 * line + column), 3);
+    player = fmod(board / pow(3, 3 * (line - 1) + (column - 1)), 3);
     return getSymbolFromInt(player);
 }
 
@@ -70,9 +70,9 @@ void updateBoard(string player, int line, int column) {
 }
 
 void printBoard() {
-    std::cout << " " << getPlayerInPosition(0, 0) << " " << "|" << " " << getPlayerInPosition(0, 1) << " " << "|" << " " << getPlayerInPosition(0, 2) <<std::endl;
+    std::cout << " " << getPlayerInPosition(1, 1) << " " << "|" << " " << getPlayerInPosition(1, 2) << " " << "|" << " " << getPlayerInPosition(1, 3) <<std::endl;
     std::cout << "---+---+---" << std::endl;
-    std::cout << " " << getPlayerInPosition(1, 0) << " " << "|" << " " << getPlayerInPosition(1, 1) << " " << "|" << " " << getPlayerInPosition(1, 2) <<std::endl;
+    std::cout << " " << getPlayerInPosition(2, 1) << " " << "|" << " " << getPlayerInPosition(2, 2) << " " << "|" << " " << getPlayerInPosition(2, 3) <<std::endl;
     std::cout << "---+---+---" << std::endl;
-    std::cout << " " << getPlayerInPosition(2, 0) << " " << "|" << " " << getPlayerInPosition(2, 1) << " " << "|" << " " << getPlayerInPosition(2, 2) <<std::endl;
+    std::cout << " " << getPlayerInPosition(3, 1) << " " << "|" << " " << getPlayerInPosition(3, 2) << " " << "|" << " " << getPlayerInPosition(3, 3) <<std::endl;
 }

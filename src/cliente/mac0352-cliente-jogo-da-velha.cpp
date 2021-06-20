@@ -402,7 +402,19 @@ void updateDelayHistory(uint64_t sendTime) {
 }
 
 void handleSendCommand(vector<string> command, string fullCommand) {
-    updateBoard(currentPlayerSymbol, stoi(command[1]), stoi(command[2]));
+    std::regex commandValidator("(send) [1-3] [1-3]");
+    if (!std::regex_match(fullCommand, commandValidator)) {
+        std::cerr << "Comando 'send' inválido. Deve possuir a forma 'send <LINHA(1-3)> <COLUNA(1-3)>'.Tente novamente" << std::endl;
+        return;
+    }
+
+    int line = stoi(command[1]), column = stoi(command[2]);
+    if (getPlayerInPosition(line, column) != " ") {
+        std::cerr << "A casa já está ocupada.Tente novamente" << std::endl;
+        return;
+    }
+    
+    updateBoard(currentPlayerSymbol, line, column);
     printBoard();
 
     uint64_t sendTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
