@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <signal.h>
+#include <filesystem>
 #include <openssl/ssl.h>
 #include "../utils.hpp"
 #include "actions.hpp"
@@ -34,6 +35,15 @@ typedef struct usuario {
 } usuario;
 
 typedef usuario* user;
+
+void create_server_directories() {
+    vector<string> diretorios {"users", "online", "matches", "log"};
+    for (string name : diretorios) {
+        if (!filesystem::exists(name)) {
+            filesystem::create_directory(name);
+        }
+    }
+}
 
 void login(user usuario, string username, string ip_addr, string port) {
     add_active_user(username, ip_addr, port);
@@ -131,6 +141,8 @@ int main (int argc, char **argv) {
     ssize_t n;
 
     signal(SIGINT, server_stop);
+
+    create_server_directories();
 
     log_init();
 
