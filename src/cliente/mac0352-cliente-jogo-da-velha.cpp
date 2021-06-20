@@ -15,6 +15,7 @@
 #include <string>
 #include <map>
 #include <regex>
+#include <chrono>
 
 #include "../utils.hpp"
 #include "./board.hpp"
@@ -34,6 +35,9 @@ bool isPlaying = false;
 
 string currentPlayerSymbol;
 string currentOpponentSymbol;
+
+vector<uint64_t> currentGameDelay(5);
+short int currentGameCalculatedDelaysCount;
 
 string PROMPT = "JogoDaVelha> ";
 
@@ -343,6 +347,10 @@ void checkGameEnd(bool myPlay) {
 }
 
 void handleOpponentSendCommand(vector<string> command) {
+    uint64_t receiveTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    string receiveIn = "receivein " + std::to_string(receiveTime);
+    write(p2pFD, receiveIn.c_str(), receiveIn.length());
+
     updateBoard(currentOpponentSymbol, stoi(command[1]), stoi(command[2]));
     printBoard();
     checkGameEnd(false);
@@ -371,10 +379,27 @@ void waitForOpponentPlay() {
     }
 }
 
+void updateDelayHistory(uint64_t sendTime) {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    if ( (n = read(p2pFD, buffer, MAXLINE)) < 0) return;
+    buffer[n] = '\0';
+    vector<string> response = convertAndSplit(buffer);
+    
+    uint64_t receiveTime = stoull(response[1]);
+    currentGameDelay[currentGameCalculatedDelaysCount++] = receiveTime - sendTime;
+    std::cout << currentGameDelay[currentGameCalculatedDelaysCount-1] << std::endl;
+}
+
 void handleSendCommand(vector<string> command, string fullCommand) {
     updateBoard(currentPlayerSymbol, stoi(command[1]), stoi(command[2]));
     printBoard();
+
+    uint64_t sendTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     write(p2pFD, fullCommand.c_str(), fullCommand.length());
+    updateDelayHistory(sendTime);
+
     checkGameEnd(true);
     if (isPlaying) waitForOpponentPlay();
 }
@@ -388,6 +413,14 @@ void handleEndCommand(string command) {
     std::cout << "Vitória do OPONENTE!! Você desistiu do jogo." << std::endl;
 }
 
+void handleDelayCommand() {
+    std::cout << "Últimos delays aproximados (em microsegundos)" << std::endl;
+    for (int i = 1; i <= 3; i++) {
+        if (currentGameCalculatedDelaysCount - i < 0) break;
+        std::cout << currentGameDelay[currentGameCalculatedDelaysCount - i] << std::endl;
+    }
+}
+
 void handleGame(bool firstToPlay) {
     string gameWelcomeMessage = firstToPlay 
         ? "Você é o primeiro a jogar. Faça sua jogada"
@@ -395,6 +428,8 @@ void handleGame(bool firstToPlay) {
     
     std::cout << gameWelcomeMessage << std::endl;
     
+    std::fill(currentGameDelay.begin(), currentGameDelay.end(), 0);
+    currentGameCalculatedDelaysCount = 0;
     if (!firstToPlay) waitForOpponentPlay();
     while (isPlaying) {
         vector<string> command;
@@ -406,7 +441,7 @@ void handleGame(bool firstToPlay) {
 
         if (command[0] == "send") handleSendCommand(command, fullCommand);
         else if (command[0] == "end") handleEndCommand(command[0]);
-        // else if (command[0] == "delay") handleDelayCommand(command[0]);
+        else if (command[0] == "delay") handleDelayCommand();
         else handleInvalidCommand();
     }
     std::cout << "Saindo do jogo..." << std::endl;
