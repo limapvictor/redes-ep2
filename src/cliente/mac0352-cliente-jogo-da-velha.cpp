@@ -30,13 +30,17 @@ int clientServerFD;
 int p2pFD;
 int invitesFD;
 int heartbeatsFD;
+int unansweredInviteFD;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
 bool isPlaying = false;
+bool hasUnansweredInvite = false;
 
 string currentPlayerSymbol;
 string currentOpponentSymbol;
+
+string unansweredInviter;
 
 vector<uint64_t> currentGameDelay(5);
 short int currentGameCalculatedDelaysCount;
@@ -54,7 +58,8 @@ std::map<string, int> COMMAND_TYPES = {
     {"delay", 7},
     {"end", 8},
     {"logout", 9},
-    {"exit", 10}
+    {"exit", 10},
+    {"accept", 11}
 };
 
 void handleGame(bool firstPlayer);
@@ -463,6 +468,7 @@ void waitForInviterConnection(string inviter) {
         vector<string> gameInfo = convertAndSplit(buffer);
         if (gameInfo[0] == "play") {
             isPlaying = true;
+            hasUnansweredInvite = false;
             currentPlayerSymbol = gameInfo[1];
             currentOpponentSymbol = inverseSymbol(gameInfo[1]);
             string firstPlayer = gameInfo[2];
@@ -472,40 +478,6 @@ void waitForInviterConnection(string inviter) {
             write(clientServerFD, startGane.c_str(), startGane.length());
             handleGame(firstPlayer == currentPlayerSymbol);
         }
-    }
-}
-
-void checkPendingInvite() {
-    int inviteFD;
-    char buffer[MAXLINE + 1];
-    ssize_t n;
-
-    if ( (inviteFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) >= 0) {
-        if ( (n = read(inviteFD, buffer, MAXLINE)) > 0) {
-            buffer[n] = '\0';
-
-            vector<string> response = convertAndSplit(buffer);
-            string inviteResponse;
-            if (response[0] == "invite") {
-                string inviter = response[1];
-                std::cout << "Você foi convidado para um jogo por: " << inviter << std::endl;
-                std::cout << "Digite \"aceitar\" para aceitar o convite, qualquer outra coisa para recusar." << std::endl;
-                std::cout << PROMPT;
-                getline(std::cin, inviteResponse);
-                if (inviteResponse == "aceitar") {
-                    inviteResponse = "accept";
-                    std::cout << inviteResponse.c_str() << std::endl;
-                    write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
-                    std::cout << "Estabelecendo conexão com o jogador " << inviter << ". Aguarde..." << std::endl;
-                    close(inviteFD);
-                    waitForInviterConnection(inviter);
-                } else {
-                    inviteResponse = "reject";
-                    write(inviteFD, inviteResponse.c_str(), inviteResponse.length());
-                }
-            };
-        }
-        close(inviteFD);
     }
 }
 
@@ -519,7 +491,19 @@ void handleClientCommand() {
         ? fullCommand.substr(0, commandDelimiter) 
         : fullCommand;
 
-
+    if (hasUnansweredInvite) {
+        if (command == "accept") {
+            write(unansweredInviteFD, command.c_str(), command.length());
+            std::cout << "Estabelecendo conexão com o jogador " << unansweredInviter << ". Aguarde..." << std::endl;
+            close(unansweredInviteFD);
+            waitForInviterConnection(unansweredInviter);
+        } else {
+            string inviteResponse = "reject";
+            write(unansweredInviteFD, inviteResponse.c_str(), inviteResponse.length());
+            hasUnansweredInvite = false;
+        }
+    }
+    
     if (COMMAND_TYPES.count(command) <= 0) {
         handleInvalidCommand();
         return;
@@ -566,18 +550,51 @@ void listenForHeartbeats() {
             close(heartbeatFD);
         }
     }
+    close(heartbeatsFD);
+}
+
+void listenForInvites() {
+    int inviteFD;
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    while (isClientConnected) {
+        while (hasUnansweredInvite || isPlaying);
+
+        if ( (inviteFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+            if ( (n = read(inviteFD, buffer, MAXLINE)) > 0) {
+                buffer[n] = '\0';
+
+                vector<string> response = convertAndSplit(buffer);
+                string inviteResponse;
+                if (response[0] == "invite") {
+                    string inviter = response[1];
+                    std::cout << "\nDesculpe pela interrupção, mas você acabou de ser convidado para um jogo por: " << inviter << std::endl;
+                    std::cout << "Digite \"accept\" para aceitar o convite, qualquer outra coisa para recusar." << std::endl;
+                    std::cout << PROMPT << std::flush;
+                    hasUnansweredInvite = true;
+                    unansweredInviteFD = inviteFD;
+                    unansweredInviter = inviter;
+                } else {
+                    close(inviteFD);
+                }
+            }
+        }
+    }
+    close(invitesFD);
 }
 
 void handleConnectedClient() {
     sendInitialInfoToServer();
     std::thread heartbeatsListenerThread(listenForHeartbeats);
+    std::thread invitesListenerThread(listenForInvites);
 
     while (isClientConnected) {
-        checkPendingInvite();
         std::cout << PROMPT;
         handleClientCommand();
     }
     heartbeatsListenerThread.join();
+    invitesListenerThread.join();
 }
 
 int main(int argc, char **argv) {
