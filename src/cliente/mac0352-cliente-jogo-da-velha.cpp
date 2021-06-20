@@ -332,7 +332,20 @@ void checkGameEnd(bool myPlay) {
     wasRequestSuccessful();
 
     isPlaying = false;
-    std::cout << "Saindo do jogo..." << std::endl;
+}
+
+void handleOpponentSendCommand(vector<string> command) {
+    updateBoard(currentOpponentSymbol, stoi(command[1]), stoi(command[2]));
+    printBoard();
+    checkGameEnd(false);
+}
+
+void handleOpponentEndCommand() {
+    string resultToServer = "result victory";
+    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
+    wasRequestSuccessful();
+    isPlaying = false;
+    std::cout << "VITÓRIA!! Seu oponente desistiu do jogo." << std::endl;
 }
 
 void waitForOpponentPlay() {
@@ -345,9 +358,8 @@ void waitForOpponentPlay() {
         std::cout << "Jogada recebida!" << std::endl;
         buffer[n] = '\0';
         response = convertAndSplit(buffer);
-        updateBoard(currentOpponentSymbol, stoi(response[1]), stoi(response[2]));
-        printBoard();
-        checkGameEnd(false);
+        if (response[0] == "send") handleOpponentSendCommand(response);
+        else if (response[0] == "end") handleOpponentEndCommand();
     }
 }
 
@@ -360,9 +372,12 @@ void handleSendCommand(vector<string> command, string fullCommand) {
 }
 
 void handleEndCommand(string command) {
+    string endgame = "endgame";
     write(p2pFD, command.c_str(), command.length());
+    write(clientServerFD, endgame.c_str(), endgame.length());
+    wasRequestSuccessful();
     isPlaying = false;
-    std::cout << "Saindo do jogo..." << std::endl;
+    std::cout << "Vitória do OPONENTE!! Você desistiu do jogo." << std::endl;
 }
 
 void handleGame(bool firstToPlay) {
@@ -386,6 +401,7 @@ void handleGame(bool firstToPlay) {
         // else if (command[0] == "delay") handleDelayCommand(command[0]);
         else handleInvalidCommand();
     }
+    std::cout << "Saindo do jogo..." << std::endl;
     close(p2pFD);
 }
 
