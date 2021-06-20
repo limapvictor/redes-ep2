@@ -4,6 +4,7 @@
 #include <ctime>
 #include <netdb.h>
 #include <sys/types.h>
+#include <sys/prctl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -79,6 +80,10 @@ void restore_user(user usuario, string username) {
 void server_stop(int signum) {
     cout << "\nStopping server gracefully...\n\n";
     log_server_stopped();
+    std::exit(0);
+}
+
+void stop_child(int signum) {
     std::exit(0);
 }
 
@@ -246,6 +251,10 @@ int main (int argc, char **argv) {
             /* Já que está no processo filho, não precisa mais do socket
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
+
+            prctl(PR_SET_PDEATHSIG, SIGHUP);
+
+            signal(SIGHUP, stop_child);
 
             getpeername(connfd, (struct sockaddr *)&clientaddr, &clientaddr_size);
             string ip_addr = inet_ntoa(clientaddr.sin_addr);
