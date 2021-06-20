@@ -435,7 +435,7 @@ void handleUserConnectCommand(string command) {
     
     std::regex commandValidator("(adduser|login) [A-z0-9]{3,16} [A-z0-9]{3,16}");
     if (!std::regex_match(command, commandValidator)) {
-        std::cerr << "Comando invalido. Tente novamente" << std::endl;
+        std::cerr << "Comando mal formatado. Ele deve ter o formato 'comando <USER(AlfaNum 3-16 carecteres)> <SENHA(AlfaNum 3-16 carecteres)>'. Tente novamente" << std::endl;
         return;
     }
     
@@ -454,7 +454,7 @@ void handlePasswdCommand(string command) {
     
     std::regex commandValidator("(passwd) [A-z0-9]{3,16} [A-z0-9]{3,16}");
     if (!std::regex_match(command, commandValidator)) {
-        std::cerr << "Comando invalido. Tente novamente" << std::endl;
+        std::cerr << "Comando mal formatado. Ele deve ter o formato 'passwd <VELHA(AlfaNum 3-16 carecteres)> <NOVA(AlfaNum 3-16 carecteres)>'. Tente novamente" << std::endl;
         return;
     }
     
@@ -469,7 +469,8 @@ void handleLeadersCommand(string command) {
 
     write(clientServerFD, command.c_str(), command.length());
     response = getServerResponse();
-    std::cout << response.substr(7 + 1) << std::endl;
+    const short int LEADERS_RESP_LENGTH = 7;
+    std::cout << response.substr(LEADERS_RESP_LENGTH + 1) << std::endl;
 }
 
 void handleListCommand(string command) {
@@ -482,11 +483,12 @@ void handleListCommand(string command) {
 
     write(clientServerFD, command.c_str(), command.length());
     response = getServerResponse();
-    if (response.substr(0, 4) == "erro") {
-        std::cerr << response.substr(4) << std::endl;
+    if (response.substr(0, 5) == "error") {
+        std::cerr << response.substr(5 + 1) << std::endl;
         return;
     }
-    std::cout << response.substr(7) << std::endl;
+    const short int ACTIVE_RESP_LENGTH = 6;
+    std::cout << response.substr(ACTIVE_RESP_LENGTH + 1) << std::endl;
 }
 
 void handleBeginCommand(string command) {
@@ -497,7 +499,7 @@ void handleBeginCommand(string command) {
 
     std::regex commandValidator("(begin) [A-z0-9]{3,16}");
     if (!std::regex_match(command, commandValidator)) {
-        std::cerr << "Comando invalido. Tente novamente" << std::endl;
+        std::cerr << "Comando mal formatado. O comando deve ser usado com 'begin <USER(AlfaNumérico 3 a 16 caracteres)>'. Tente novamente." << std::endl;
         return;
     }
 
@@ -508,9 +510,13 @@ void handleBeginCommand(string command) {
 }
 
 void handleSendCommand(vector<string> command, string fullCommand) {
+    if (!isPlaying) {
+        std::cerr << "Você deve estar jogando para usar esse comando." << std::endl;
+    }
+    
     std::regex commandValidator("(send) [1-3] [1-3]");
     if (!std::regex_match(fullCommand, commandValidator)) {
-        std::cerr << "Comando 'send' inválido. Deve possuir a forma 'send <LINHA(1-3)> <COLUNA(1-3)>'.Tente novamente" << std::endl;
+        std::cerr << "Comando mal formatado. Deve possuir a forma 'send <LINHA(1-3)> <COLUNA(1-3)>'.Tente novamente" << std::endl;
         return;
     }
 
@@ -532,6 +538,10 @@ void handleSendCommand(vector<string> command, string fullCommand) {
 }
 
 void handleEndCommand(string command) {
+    if (!isPlaying) {
+        std::cerr << "Você deve estar jogando para usar esse comando." << std::endl;
+    }
+    
     string endgame = "endgame";
     write(p2pFD, command.c_str(), command.length());
     write(clientServerFD, endgame.c_str(), endgame.length());
@@ -541,6 +551,10 @@ void handleEndCommand(string command) {
 }
 
 void handleDelayCommand() {
+    if (!isPlaying) {
+        std::cerr << "Você deve estar jogando para usar esse comando." << std::endl;
+    }
+
     std::cout << "Últimos delays aproximados (em microsegundos)" << std::endl;
     for (int i = 1; i <= 3; i++) {
         if (currentGameCalculatedDelaysCount - i < 0) break;
