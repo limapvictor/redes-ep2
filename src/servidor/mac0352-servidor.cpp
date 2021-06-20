@@ -338,7 +338,11 @@ int main (int argc, char **argv) {
                 // HEARTBEATif (n == -1 && errno == EAGAIN && !heartbeat_sent) {
                 //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
                 //         hb_fd = create_hb_socket(ip_addr, hb_port);
-                //         write(hb_fd, "heartbeat", 9);
+                //         if (current_user->is_playing && !check_user_online(current_user->challenger_name)) {
+                //            write(hb_fd, "disconnected", 12);
+                //         } else{
+                //            write(hb_fd, "heartbeat", 9);
+                //         }
                 //         heartbeat_send_time = clock();
                 //         heartbeat_sent = true;
                 //         accept_time = clock();
