@@ -62,7 +62,124 @@ std::map<string, int> COMMAND_TYPES = {
     {"accept", 11}
 };
 
+void establishServerConnection(int argc, char **argv);
+bool establishP2PConnection(string peerIpAddress, string peerPort);
+void initListener(int *listenerFD);
+string getServerResponse();
+bool wasRequestSuccessful();
 void handleGame(bool firstPlayer);
+void handleInvalidCommand();
+void handleInviteResponse();
+void sendInitialInfoToServer();
+void checkGameEnd(bool myPlay);
+void handleOpponentSendCommand(vector<string> command);
+void handleOpponentEndCommand();
+void waitForOpponentPlay();
+void updateDelayHistory(uint64_t sendTime);
+void handleSendCommand(vector<string> command, string fullCommand);
+void handleEndCommand(string command);
+void handleDelayCommand();
+void handleGame(bool firstToPlay);
+void waitForInviterConnection(string inviter);
+void listenForHeartbeats();
+void listenForInvites();
+void handleUserConnectCommand(string command);
+void handlePasswdCommand(string command);
+void handleLeadersCommand(string command);
+void handleListCommand(string command);
+void handleBeginCommand(string command);
+void handleLogoutCommand(string command);
+void handleExitCommand(string command);
+void handleClientCommand();
+void handleConnectedClient();
+
+string getServerResponse() {
+    char buffer[MAXLINE + 1];
+    int bufferSize;
+
+    if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
+        std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
+        return std::string();
+    }
+
+    buffer[bufferSize] = '\0';
+    return std::string(buffer);
+}
+
+bool wasRequestSuccessful() {
+    string requestResult, response;
+    int resultDelimiter;
+    
+    response = getServerResponse();
+    if (response.length() == 0) return false;
+
+    resultDelimiter = response.find(' ');
+    requestResult = resultDelimiter > 0 
+        ? response.substr(0, resultDelimiter) 
+        : response;
+
+    if (requestResult == "error") {
+        std::cout << "Erro:" << response.substr(resultDelimiter) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void updateDelayHistory(uint64_t sendTime) {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    if ( (n = read(p2pFD, buffer, MAXLINE)) < 0) return;
+    buffer[n] = '\0';
+    vector<string> response = convertAndSplit(buffer);
+    
+    uint64_t receiveTime = stoull(response[1]);
+    currentGameDelay[currentGameCalculatedDelaysCount++] = receiveTime - sendTime;
+    std::cout << currentGameDelay[currentGameCalculatedDelaysCount-1] << std::endl;
+}
+
+void checkGameEnd(bool myPlay) {
+    int gameResult;
+    string resultToServer;
+
+    if ( (gameResult = getGameCurrentResult()) < 0) return;
+    
+    if (gameResult == 0) {
+        std::cout << "Jogo EMPATADO!" << std::endl;
+        resultToServer = myPlay ? "result draw" : "endgame";
+    } else if (gameResult == getIntFromPlayerSymbol(currentPlayerSymbol)) {
+        std::cout << "VITÓRIA!!" << std::endl;
+        resultToServer = "result victory";
+    } else {
+        std::cout << "Vitória do OPONENTE!!" << std::endl;
+        resultToServer = "endgame";
+    }
+    
+    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
+    wasRequestSuccessful();
+
+    isPlaying = false;
+}
+
+void sendInitialInfoToServer() {
+    struct sockaddr_in invitesSocketAddr;
+    unsigned int sockLen;
+    unsigned short invitesPort, heartbeatsPort;
+
+    bzero(&invitesSocketAddr, sizeof(invitesSocketAddr));
+    sockLen = sizeof(invitesSocketAddr);
+    getsockname(invitesFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
+    invitesPort = ntohs(invitesSocketAddr.sin_port);
+    getsockname(heartbeatsFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
+    heartbeatsPort = ntohs(invitesSocketAddr.sin_port);
+
+    std::string info = "info " + std::to_string(invitesPort);
+    std::cout << info << " " << heartbeatsPort << std::endl;
+    write(clientServerFD, info.c_str(), info.length());
+    while (!wasRequestSuccessful()) {
+        write(clientServerFD, info.c_str(), info.length());
+    }
+}
 
 void establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
@@ -144,36 +261,166 @@ void initListener(int *listenerFD) {
     }
 }
 
-string getServerResponse() {
+void waitForInviterConnection(string inviter) {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    while ( (p2pFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) < 0);
+    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
+        buffer[n] = '\0';
+
+        vector<string> gameInfo = convertAndSplit(buffer);
+        if (gameInfo[0] == "play") {
+            isPlaying = true;
+            hasUnansweredInvite = false;
+            currentPlayerSymbol = gameInfo[1];
+            currentOpponentSymbol = inverseSymbol(gameInfo[1]);
+            string firstPlayer = gameInfo[2];
+            std::cout << "Jogo INICIADO!" << std::endl;
+            resetBoard();
+            string startGane = "startgame " + inviter;
+            write(clientServerFD, startGane.c_str(), startGane.length());
+            handleGame(firstPlayer == currentPlayerSymbol);
+        }
+    }
+}
+
+void handleInviteResponse() {
     char buffer[MAXLINE + 1];
     int bufferSize;
 
     if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
         std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
-        return std::string();
+        return;
     }
 
     buffer[bufferSize] = '\0';
-    return std::string(buffer);
+    vector<string> response = convertAndSplit(buffer);
+    if (response[0] == "error" || response[0] == "reject") {
+        string error(buffer);
+        error = error.substr(response[0].length());
+        std::cerr << error << std::endl;
+        return;
+    }
+    if (!establishP2PConnection(response[1], response[2])) return;
+    
+    currentPlayerSymbol = response[3];
+    currentOpponentSymbol = inverseSymbol(currentPlayerSymbol);
+    resetBoard();
+    string firstToPlay = response[4];
+    string gameInitMessage = "play " + currentOpponentSymbol + " " + firstToPlay;
+    isPlaying = true;
+    write(p2pFD, gameInitMessage.c_str(), gameInitMessage.length());
+    handleGame(currentPlayerSymbol == firstToPlay);
 }
 
-bool wasRequestSuccessful() {
-    string requestResult, response;
-    int resultDelimiter;
-    
-    response = getServerResponse();
-    if (response.length() == 0) return false;
+void listenForHeartbeats() {
+    while (isClientConnected) {
+        char buffer[MAXLINE + 1];
+        ssize_t n;
+        int heartbeatFD;
 
-    resultDelimiter = response.find(' ');
-    requestResult = resultDelimiter > 0 
-        ? response.substr(0, resultDelimiter) 
-        : response;
+        if ( (heartbeatFD = accept(heartbeatsFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+            if ( (n = read(heartbeatFD, buffer, MAXLINE)) > 0) {
+                buffer[n] = '\0';
 
-    if (requestResult == "error") {
-        std::cout << "Erro:" << response.substr(resultDelimiter) << std::endl;
-        return false;
+                write(heartbeatFD, buffer, n);
+            }
+            close(heartbeatFD);
+        }
     }
-    return true;
+    close(heartbeatsFD);
+}
+
+void listenForInvites() {
+    int inviteFD;
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+
+    while (isClientConnected) {
+        while (hasUnansweredInvite || isPlaying);
+
+        if ( (inviteFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+            if ( (n = read(inviteFD, buffer, MAXLINE)) > 0) {
+                buffer[n] = '\0';
+
+                vector<string> response = convertAndSplit(buffer);
+                string inviteResponse;
+                if (response[0] == "invite") {
+                    string inviter = response[1];
+                    std::cout << "\nDesculpe pela interrupção, mas você acabou de ser convidado para um jogo por: " << inviter << std::endl;
+                    std::cout << "Digite \"accept\" para aceitar o convite, qualquer outra coisa para recusar." << std::endl;
+                    std::cout << PROMPT << std::flush;
+                    hasUnansweredInvite = true;
+                    unansweredInviteFD = inviteFD;
+                    unansweredInviter = inviter;
+                } else {
+                    close(inviteFD);
+                }
+            }
+        }
+    }
+    close(invitesFD);
+}
+
+void waitForOpponentPlay() {
+    char buffer[MAXLINE + 1];
+    ssize_t n;
+    vector<string> response;
+
+    std::cout << "Esperando jogada do adversário..." << std::endl;
+    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
+        std::cout << "Jogada recebida!" << std::endl;
+        buffer[n] = '\0';
+        response = convertAndSplit(buffer);
+        if (response[0] == "send") handleOpponentSendCommand(response);
+        else if (response[0] == "end") handleOpponentEndCommand();
+    }
+}
+
+void handleGame(bool firstToPlay) {
+    string gameWelcomeMessage = firstToPlay 
+        ? "Você é o primeiro a jogar. Faça sua jogada"
+        : "Você é o segundo a jogar. Espere a jogada do outro jogador.";
+    
+    std::cout << gameWelcomeMessage << std::endl;
+    
+    std::fill(currentGameDelay.begin(), currentGameDelay.end(), 0);
+    currentGameCalculatedDelaysCount = 0;
+    if (!firstToPlay) waitForOpponentPlay();
+    while (isPlaying) {
+        vector<string> command;
+        string fullCommand;
+        
+        std::cout << PROMPT;
+        getline(std::cin, fullCommand);
+        command = convertAndSplit(fullCommand.data());
+
+        if (command[0] == "send") handleSendCommand(command, fullCommand);
+        else if (command[0] == "end") handleEndCommand(command[0]);
+        else if (command[0] == "delay") handleDelayCommand();
+        else handleInvalidCommand();
+    }
+    std::cout << "Saindo do jogo..." << std::endl;
+    close(p2pFD);
+}
+
+void handleOpponentSendCommand(vector<string> command) {
+    uint64_t receiveTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    string receiveIn = "receivein " + std::to_string(receiveTime);
+    write(p2pFD, receiveIn.c_str(), receiveIn.length());
+
+    updateBoard(currentOpponentSymbol, stoi(command[1]), stoi(command[2]));
+    printBoard();
+    checkGameEnd(false);
+}
+
+void handleOpponentEndCommand() {
+    string resultToServer = "result victory";
+    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
+    wasRequestSuccessful();
+    isPlaying = false;
+    std::cout << "VITÓRIA!! Seu oponente desistiu do jogo." << std::endl;
 }
 
 void handleInvalidCommand() {
@@ -242,35 +489,6 @@ void handleListCommand(string command) {
     std::cout << response.substr(7) << std::endl;
 }
 
-void handleInviteResponse() {
-    char buffer[MAXLINE + 1];
-    int bufferSize;
-
-    if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
-        std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
-        return;
-    }
-
-    buffer[bufferSize] = '\0';
-    vector<string> response = convertAndSplit(buffer);
-    if (response[0] == "error" || response[0] == "reject") {
-        string error(buffer);
-        error = error.substr(response[0].length());
-        std::cerr << error << std::endl;
-        return;
-    }
-    if (!establishP2PConnection(response[1], response[2])) return;
-    
-    currentPlayerSymbol = response[3];
-    currentOpponentSymbol = inverseSymbol(currentPlayerSymbol);
-    resetBoard();
-    string firstToPlay = response[4];
-    string gameInitMessage = "play " + currentOpponentSymbol + " " + firstToPlay;
-    isPlaying = true;
-    write(p2pFD, gameInitMessage.c_str(), gameInitMessage.length());
-    handleGame(currentPlayerSymbol == firstToPlay);
-}
-
 void handleBeginCommand(string command) {
     if (!isUserLoggedIn) {
         std::cerr << "Você deve estar logado para iniciar uma partida." << std::endl;
@@ -287,118 +505,6 @@ void handleBeginCommand(string command) {
     std::cout << "Convite enviado para o servidor!" << std::endl;
     std::cout << "Esperando resposta..." << std::endl;
     handleInviteResponse();
-}
-
-void handleLogoutCommand(string command) {
-    if (!isUserLoggedIn) {
-        std::cerr << "Você não está logado." << std::endl;
-        return;
-    }
-    
-    write(clientServerFD, command.c_str(), command.length());
-    if (wasRequestSuccessful()) {
-        std::cout << "Logout realizado com sucesso." << std::endl;
-        isUserLoggedIn = false;
-    }
-}
-
-void handleExitCommand(string command) {
-    write(clientServerFD, command.c_str(), command.length());
-    if (wasRequestSuccessful()) {
-        std::cout << "Saindo do jogo..." << std::endl;
-    }
-
-    close(clientServerFD);
-    isClientConnected = false;
-}
-
-void sendInitialInfoToServer() {
-    struct sockaddr_in invitesSocketAddr;
-    unsigned int sockLen;
-    unsigned short invitesPort, heartbeatsPort;
-
-    bzero(&invitesSocketAddr, sizeof(invitesSocketAddr));
-    sockLen = sizeof(invitesSocketAddr);
-    getsockname(invitesFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
-    invitesPort = ntohs(invitesSocketAddr.sin_port);
-    getsockname(heartbeatsFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
-    heartbeatsPort = ntohs(invitesSocketAddr.sin_port);
-
-    std::string info = "info " + std::to_string(invitesPort);
-    std::cout << info << " " << heartbeatsPort << std::endl;
-    write(clientServerFD, info.c_str(), info.length());
-    while (!wasRequestSuccessful()) {
-        write(clientServerFD, info.c_str(), info.length());
-    }
-}
-
-void checkGameEnd(bool myPlay) {
-    int gameResult;
-    string resultToServer;
-
-    if ( (gameResult = getGameCurrentResult()) < 0) return;
-    
-    if (gameResult == 0) {
-        std::cout << "Jogo EMPATADO!" << std::endl;
-        resultToServer = myPlay ? "result draw" : "endgame";
-    } else if (gameResult == getIntFromPlayerSymbol(currentPlayerSymbol)) {
-        std::cout << "VITÓRIA!!" << std::endl;
-        resultToServer = "result victory";
-    } else {
-        std::cout << "Vitória do OPONENTE!!" << std::endl;
-        resultToServer = "endgame";
-    }
-    
-    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
-    wasRequestSuccessful();
-
-    isPlaying = false;
-}
-
-void handleOpponentSendCommand(vector<string> command) {
-    uint64_t receiveTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    string receiveIn = "receivein " + std::to_string(receiveTime);
-    write(p2pFD, receiveIn.c_str(), receiveIn.length());
-
-    updateBoard(currentOpponentSymbol, stoi(command[1]), stoi(command[2]));
-    printBoard();
-    checkGameEnd(false);
-}
-
-void handleOpponentEndCommand() {
-    string resultToServer = "result victory";
-    write(clientServerFD, resultToServer.c_str(), resultToServer.length());
-    wasRequestSuccessful();
-    isPlaying = false;
-    std::cout << "VITÓRIA!! Seu oponente desistiu do jogo." << std::endl;
-}
-
-void waitForOpponentPlay() {
-    char buffer[MAXLINE + 1];
-    ssize_t n;
-    vector<string> response;
-
-    std::cout << "Esperando jogada do adversário..." << std::endl;
-    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
-        std::cout << "Jogada recebida!" << std::endl;
-        buffer[n] = '\0';
-        response = convertAndSplit(buffer);
-        if (response[0] == "send") handleOpponentSendCommand(response);
-        else if (response[0] == "end") handleOpponentEndCommand();
-    }
-}
-
-void updateDelayHistory(uint64_t sendTime) {
-    char buffer[MAXLINE + 1];
-    ssize_t n;
-
-    if ( (n = read(p2pFD, buffer, MAXLINE)) < 0) return;
-    buffer[n] = '\0';
-    vector<string> response = convertAndSplit(buffer);
-    
-    uint64_t receiveTime = stoull(response[1]);
-    currentGameDelay[currentGameCalculatedDelaysCount++] = receiveTime - sendTime;
-    std::cout << currentGameDelay[currentGameCalculatedDelaysCount-1] << std::endl;
 }
 
 void handleSendCommand(vector<string> command, string fullCommand) {
@@ -442,55 +548,27 @@ void handleDelayCommand() {
     }
 }
 
-void handleGame(bool firstToPlay) {
-    string gameWelcomeMessage = firstToPlay 
-        ? "Você é o primeiro a jogar. Faça sua jogada"
-        : "Você é o segundo a jogar. Espere a jogada do outro jogador.";
-    
-    std::cout << gameWelcomeMessage << std::endl;
-    
-    std::fill(currentGameDelay.begin(), currentGameDelay.end(), 0);
-    currentGameCalculatedDelaysCount = 0;
-    if (!firstToPlay) waitForOpponentPlay();
-    while (isPlaying) {
-        vector<string> command;
-        string fullCommand;
-        
-        std::cout << PROMPT;
-        getline(std::cin, fullCommand);
-        command = convertAndSplit(fullCommand.data());
-
-        if (command[0] == "send") handleSendCommand(command, fullCommand);
-        else if (command[0] == "end") handleEndCommand(command[0]);
-        else if (command[0] == "delay") handleDelayCommand();
-        else handleInvalidCommand();
+void handleLogoutCommand(string command) {
+    if (!isUserLoggedIn) {
+        std::cerr << "Você não está logado." << std::endl;
+        return;
     }
-    std::cout << "Saindo do jogo..." << std::endl;
-    close(p2pFD);
+    
+    write(clientServerFD, command.c_str(), command.length());
+    if (wasRequestSuccessful()) {
+        std::cout << "Logout realizado com sucesso." << std::endl;
+        isUserLoggedIn = false;
+    }
 }
 
-void waitForInviterConnection(string inviter) {
-    char buffer[MAXLINE + 1];
-    ssize_t n;
-
-    while ( (p2pFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) < 0);
-    if ( (n = read(p2pFD, buffer, MAXLINE)) > 0) {
-        buffer[n] = '\0';
-
-        vector<string> gameInfo = convertAndSplit(buffer);
-        if (gameInfo[0] == "play") {
-            isPlaying = true;
-            hasUnansweredInvite = false;
-            currentPlayerSymbol = gameInfo[1];
-            currentOpponentSymbol = inverseSymbol(gameInfo[1]);
-            string firstPlayer = gameInfo[2];
-            std::cout << "Jogo INICIADO!" << std::endl;
-            resetBoard();
-            string startGane = "startgame " + inviter;
-            write(clientServerFD, startGane.c_str(), startGane.length());
-            handleGame(firstPlayer == currentPlayerSymbol);
-        }
+void handleExitCommand(string command) {
+    write(clientServerFD, command.c_str(), command.length());
+    if (wasRequestSuccessful()) {
+        std::cout << "Saindo do jogo..." << std::endl;
     }
+
+    close(clientServerFD);
+    isClientConnected = false;
 }
 
 void handleClientCommand() {
@@ -545,55 +623,6 @@ void handleClientCommand() {
             handleExitCommand(command);
             break;
     }
-}
-
-void listenForHeartbeats() {
-    while (isClientConnected) {
-        char buffer[MAXLINE + 1];
-        ssize_t n;
-        int heartbeatFD;
-
-        if ( (heartbeatFD = accept(heartbeatsFD, (struct sockaddr *) NULL, NULL)) >= 0) {
-            if ( (n = read(heartbeatFD, buffer, MAXLINE)) > 0) {
-                buffer[n] = '\0';
-
-                write(heartbeatFD, buffer, n);
-            }
-            close(heartbeatFD);
-        }
-    }
-    close(heartbeatsFD);
-}
-
-void listenForInvites() {
-    int inviteFD;
-    char buffer[MAXLINE + 1];
-    ssize_t n;
-
-    while (isClientConnected) {
-        while (hasUnansweredInvite || isPlaying);
-
-        if ( (inviteFD = accept(invitesFD, (struct sockaddr *) NULL, NULL)) >= 0) {
-            if ( (n = read(inviteFD, buffer, MAXLINE)) > 0) {
-                buffer[n] = '\0';
-
-                vector<string> response = convertAndSplit(buffer);
-                string inviteResponse;
-                if (response[0] == "invite") {
-                    string inviter = response[1];
-                    std::cout << "\nDesculpe pela interrupção, mas você acabou de ser convidado para um jogo por: " << inviter << std::endl;
-                    std::cout << "Digite \"accept\" para aceitar o convite, qualquer outra coisa para recusar." << std::endl;
-                    std::cout << PROMPT << std::flush;
-                    hasUnansweredInvite = true;
-                    unansweredInviteFD = inviteFD;
-                    unansweredInviter = inviter;
-                } else {
-                    close(inviteFD);
-                }
-            }
-        }
-    }
-    close(invitesFD);
 }
 
 void handleConnectedClient() {
