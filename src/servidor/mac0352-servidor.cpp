@@ -260,8 +260,6 @@ int main (int argc, char **argv) {
             //HEARTBEAT
             //string hb_port = info_message[1];
             //string player_port = info_message[2];
-
-            //int hb_fd = create_hb_socket(ip_addr, hb_port);
          
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
@@ -307,6 +305,7 @@ int main (int argc, char **argv) {
 
                 // HEARTBEATif (n == -1 && errno == EAGAIN && !heartbeat_sent) {
                 //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
+                //         hb_fd = create_hb_socket(ip_addr, hb_port);
                 //         write(hb_fd, "heartbeat", 9);
                 //         heartbeat_send_time = clock();
                 //         heartbeat_sent = true;
@@ -318,7 +317,8 @@ int main (int argc, char **argv) {
                 //         hb_n = read(hb_fd, recvline, MAXLINE);
                 //         if (hb_n == -1 && errno == EAGAIN);
                 //         else if (hb_n >= 0) {
-                //             heartbeat_sent = false;                
+                //             heartbeat_sent = false;     
+                //             close(hb_fd);           
                 //         }
                 //     }
                 // } 

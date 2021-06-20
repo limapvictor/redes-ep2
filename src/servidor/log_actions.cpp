@@ -7,7 +7,7 @@ using filesystem::exists;
 
 #define LOGPATH "./log/log"
 
-bool check_last_log_line_success() {
+bool last_execution_succeeded() {
     ifstream logfile;
     logfile.open(LOGPATH);
     logfile.seekg(-1,ios_base::end); 
@@ -50,7 +50,7 @@ void log_init(){
 
     logfile << "\nServidor iniciado com sucesso. Última execução foi finalizada ";
 
-    bool graceful = check_last_log_line_success();
+    bool graceful = last_execution_succeeded();
 
     if (graceful) {
         logfile << "de maneira correta.\n";
