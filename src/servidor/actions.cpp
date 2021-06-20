@@ -102,7 +102,7 @@ string get_lideres() {
     sort(leaders.begin(), leaders.end(), sort_lideres);
     string result = "leaders";
     for (vector<string> user : leaders)
-        result = result + " " + user[0] + " " + user[1];
+        result = result + "\n" + user[0] + " " + user[1];
     return result;
 }
 

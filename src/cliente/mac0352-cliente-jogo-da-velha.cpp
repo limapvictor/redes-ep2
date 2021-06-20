@@ -206,6 +206,14 @@ void handlePasswdCommand(string command) {
     }
 }
 
+void handleLeadersCommand(string command) {
+    string response;
+
+    write(clientServerFD, command.c_str(), command.length());
+    response = getServerResponse();
+    std::cout << response.substr(7 + 1) << std::endl;
+}
+
 void handleListCommand(string command) {
     string response;
     
@@ -487,7 +495,7 @@ void handleClientCommand() {
             handlePasswdCommand(fullCommand);
             break;
         case 3:
-            std::cout << "leaders" << std::endl;
+            handleLeadersCommand(command);
             break;
         case 4:
             handleListCommand(command);
