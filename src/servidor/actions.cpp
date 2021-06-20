@@ -58,6 +58,13 @@ void remove_active_user(string username) {
     remove(ONLINE_PATH + username);
 }
 
+void remove_online_users() {
+    for (const auto & file : directory_iterator("./online")) {
+        string username = file.path().filename().replace_extension("");
+        if (!check_user_playing(username)) remove_active_user(username);
+    }
+}
+
 string get_user_password(string username) {
     ifstream userfile(USERS_PATH + username);
     string password, points;

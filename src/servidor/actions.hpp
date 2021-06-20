@@ -25,6 +25,8 @@ void remove_match(string player_name, string challenger_name);
 
 void remove_active_user(string username);
 
+void remove_online_users();
+
 string get_user_password(string username);
 
 void set_user_password(string username, string password);
