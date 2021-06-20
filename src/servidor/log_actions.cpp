@@ -1,13 +1,39 @@
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 using namespace std;
 #include "log_actions.hpp"
 using filesystem::exists;
 
 #define LOGPATH "./log/log"
 
-bool check_last_log_line_success() {
-    return true;
+bool last_execution_succeeded() {
+    ifstream logfile;
+    logfile.open(LOGPATH);
+    logfile.seekg(-1,ios_base::end); 
+    bool achou_inicio_ultima_linha = false;
+    while(!achou_inicio_ultima_linha) {
+        char ch;
+        logfile.get(ch);
+        
+        if((int)logfile.tellg() <= 1) {
+            logfile.seekg(0);
+            achou_inicio_ultima_linha = true;
+        }
+        else if(ch == '\n') {
+            achou_inicio_ultima_linha = true;
+        }
+        else {
+            logfile.seekg(-2,ios_base::cur);
+        }
+    }
+
+    string ultima_linha;            
+    getline(logfile,ultima_linha);
+    logfile.close();
+    if (ultima_linha.compare("Servidor finalizado com sucesso.") == 0) return true;
+    
+    return false;
 }
 
 void log_init(){
@@ -24,7 +50,7 @@ void log_init(){
 
     logfile << "\nServidor iniciado com sucesso. Última execução foi finalizada ";
 
-    bool graceful = check_last_log_line_success();
+    bool graceful = last_execution_succeeded();
 
     if (graceful) {
         logfile << "de maneira correta.\n";

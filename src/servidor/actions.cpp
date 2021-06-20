@@ -33,9 +33,9 @@ void add_new_user(string username, string password, string points) {
     userfile.close();
 }
 
-void add_active_user(string username, string ip_addr, string port) {
+void add_active_user(string username, string ip_addr, string hb_port, string game_port) {
     ofstream userfile(ONLINE_PATH + username);
-    userfile << ip_addr << " " << port;
+    userfile << ip_addr << " " << hb_port << " " << game_port;
     userfile.close();
 }
 
@@ -75,12 +75,20 @@ void set_user_password(string username, string new_password) {
 
 net_addr get_user_net_info(string username) {
     ifstream userfile(ONLINE_PATH + username);
-    string ip_addr, port;
-    userfile >> ip_addr >> port;
+    string ip_addr, hb_port, game_port;
+    userfile >> ip_addr >> hb_port >> game_port;
     net_addr info = new net_address;
     info->ip_addr = ip_addr;
-    info->port = port;
+    info->hb_port = hb_port;
+    info->game_port = game_port;
     return info;
+}
+
+string get_opponent(string username) {
+    ifstream userfile(MATCHES_PATH + username);
+    string oponente;
+    userfile >> oponente;
+    return oponente;
 }
 
 bool sort_lideres(vector<string> x, vector<string> y) {
