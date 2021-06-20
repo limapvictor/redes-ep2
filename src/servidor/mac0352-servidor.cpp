@@ -27,7 +27,8 @@ typedef struct usuario {
     bool logged_in;
     string name;
     string ip_address;
-    string port;
+    string game_port;
+    string hb_port;
     bool is_playing;
     string challenger_name;
     string challenger_ip_address;
@@ -45,17 +46,34 @@ void create_server_directories() {
     }
 }
 
-void login(user usuario, string username, string ip_addr, string port) {
-    add_active_user(username, ip_addr, port);
+void login(user usuario, string username, string ip_addr, string hb_port, string game_port) {
+    add_active_user(username, ip_addr, hb_port, game_port);
     usuario->logged_in = true;
     usuario->name = username;
     usuario->ip_address = ip_addr;
-    usuario->port = port;
+    usuario->hb_port = hb_port;
+    usuario->game_port = game_port;
 }
 
 void logout(user usuario) {
     remove_active_user(usuario->name);
     usuario->logged_in = false;
+}
+
+void restore_user(user usuario, string username) {
+    usuario->logged_in = true;
+    usuario->name = username;
+
+    net_addr user_info = get_user_net_info(username);
+    usuario->ip_address = user_info->ip_addr;
+    usuario->hb_port = user_info->hb_port;
+    usuario->game_port = user_info->game_port;
+
+    usuario->is_playing = true;
+    string oponente = get_opponent(username);
+    net_addr opponent_info = get_user_net_info(oponente);
+    usuario->challenger_ip_address = opponent_info->ip_addr;
+    usuario->challenger_port = opponent_info->game_port;
 }
 
 void server_stop(int signum) {
@@ -245,22 +263,26 @@ int main (int argc, char **argv) {
 
             // SSL_accept(ssl);
 
+            string hb_port;
+            string game_port;
+            user current_user = new usuario;
+
             n = read(connfd, recvline, MAXLINE);
 
-            vector<string> info_message = convertAndSplit(recvline);
-            while (info_message[0].compare("info") != 0) {
-                write(connfd, "error", 5);
-                n = read(connfd, recvline, MAXLINE);
-                info_message = convertAndSplit(recvline);
+            vector<string> start_message = convertAndSplit(recvline);
+            string comando = start_message[0];
+            if (comando.compare("info") == 0) {
+                string hb_port = start_message[1];
+                string game_port = start_message[2];                
+                current_user->logged_in = false;
+                current_user->is_playing = false;
             }
-
-            write(connfd, "success", 7);
-            string port = info_message[1];
-
-            //HEARTBEAT
-            //string hb_port = info_message[1];
-            //string player_port = info_message[2];
+            else if (comando.compare("reconnect") == 0) {
+                string usuario = start_message[1];
+                restore_user(current_user, usuario);
+            }
          
+            write(connfd, "success", 7);
             /* Agora pode ler do socket e escrever no socket. Isto tem
              * que ser feito em sincronia com o cliente. Não faz sentido
              * ler sem ter o que ler. Ou seja, neste caso está sendo
@@ -270,9 +292,6 @@ int main (int argc, char **argv) {
              * esperando por esta resposta) 
              */
 
-            user current_user = new usuario;
-            current_user->logged_in = false;
-            current_user->is_playing = false;
             
             /* ========================================================= */
             /* ========================================================= */
@@ -354,7 +373,7 @@ int main (int argc, char **argv) {
                     }
 
                     add_new_user(username, password, "0");
-                    login(current_user, username, ip_addr, port);
+                    login(current_user, username, ip_addr, hb_port, game_port);
                     write(connfd, "success", 7);
                     log_login_success(username, ip_addr);
                 }
@@ -412,7 +431,7 @@ int main (int argc, char **argv) {
                     string current_password = get_user_password(username);
 
                     if (password.compare(current_password) == 0) {
-                        login(current_user, username, ip_addr, port);
+                        login(current_user, username, ip_addr, hb_port, game_port);
                         write(connfd, "success", 7);
                         log_login_success(username, ip_addr);
                         continue;
@@ -469,7 +488,7 @@ int main (int argc, char **argv) {
 
                     net_addr client_info = get_user_net_info(oponente);
 
-                    int sockfd = invite_player(connfd, client_info->ip_addr, client_info->port);
+                    int sockfd = invite_player(connfd, client_info->ip_addr, client_info->game_port);
 
                     string invite = "invite " + current_user->name;
                     write(sockfd, invite.c_str(), invite.length());
@@ -487,7 +506,7 @@ int main (int argc, char **argv) {
                     else if (answer.compare("accept") == 0) {
                         current_user->challenger_name = oponente;
                         current_user->challenger_ip_address = client_info->ip_addr;
-                        current_user->challenger_port = client_info->port;
+                        current_user->challenger_port = client_info->game_port;
                         current_user->is_playing = true;
                         string player_symbol, opponent_symbol;
                         if ((rand() % 2) == 0) {
@@ -497,7 +516,7 @@ int main (int argc, char **argv) {
                             player_symbol = "O";
                             opponent_symbol = "X";
                         }
-                        string response = "accept " + client_info->ip_addr + " " + client_info->port + " " + player_symbol;
+                        string response = "accept " + client_info->ip_addr + " " + client_info->game_port + " " + player_symbol;
                         if ((rand() % 2) == 0) {
                             response = response + " " + opponent_symbol;
                         } else {
@@ -557,7 +576,7 @@ int main (int argc, char **argv) {
                     net_addr challenger_info = get_user_net_info(oponente);
                     current_user->challenger_name = oponente;
                     current_user->challenger_ip_address = challenger_info->ip_addr;
-                    current_user->challenger_port = challenger_info->port;
+                    current_user->challenger_port = challenger_info->game_port;
                     current_user->is_playing = true;
                 }
             }
