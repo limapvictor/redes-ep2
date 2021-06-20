@@ -38,11 +38,11 @@
 test*
 
 #diretorios do servidor
-servidor/users
-servidor/online
-servidor/matches
+bin/servidor/users/*
+bin/servidor/online/*
+bin/servidor/matches/*
 servidor/servidor
-servidor/log
+bin/servidor/log/*
 
 #executaveis
 *jogo-da-velha
