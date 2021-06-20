@@ -16,6 +16,7 @@
 #include <map>
 #include <regex>
 #include <chrono>
+#include <thread>
 
 #include "../utils.hpp"
 #include "./board.hpp"
@@ -28,6 +29,7 @@ using namespace std;
 int clientServerFD;
 int p2pFD;
 int invitesFD;
+int heartbeatsFD;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
@@ -112,26 +114,26 @@ bool establishP2PConnection(string peerIpAddress, string peerPort) {
     return true;
 }
 
-void initP2PListener() {
+void initListener(int *listenerFD) {
     struct sockaddr_in clientAddress;
 
-    if ( (invitesFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ( (*listenerFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(4);
     }
-    fcntl(invitesFD, F_SETFL, O_NONBLOCK);
+    fcntl(*listenerFD, F_SETFL, O_NONBLOCK);
 
     bzero(&clientAddress, sizeof(clientAddress));
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     clientAddress.sin_port = htons(0);
 
-    if (bind(invitesFD, (struct sockaddr *) &clientAddress, sizeof(clientAddress)) < 0 ) {
+    if (bind(*listenerFD, (struct sockaddr *) &clientAddress, sizeof(clientAddress)) < 0 ) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(5);
     }
 
-    if (listen(invitesFD, LISTENQ) < 0) {
+    if (listen(*listenerFD, LISTENQ) < 0) {
         std::cerr << "Erro interno de rede. Tente novamente mais tarde." << std::endl;
         std::exit(6);
     }
@@ -308,15 +310,17 @@ void handleExitCommand(string command) {
 void sendInitialInfoToServer() {
     struct sockaddr_in invitesSocketAddr;
     unsigned int sockLen;
-    unsigned short invitesPort;
+    unsigned short invitesPort, heartbeatsPort;
 
     bzero(&invitesSocketAddr, sizeof(invitesSocketAddr));
     sockLen = sizeof(invitesSocketAddr);
     getsockname(invitesFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
     invitesPort = ntohs(invitesSocketAddr.sin_port);
+    getsockname(heartbeatsFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
+    heartbeatsPort = ntohs(invitesSocketAddr.sin_port);
 
     std::string info = "info " + std::to_string(invitesPort);
-    std::cout << info << std::endl;
+    std::cout << info << " " << heartbeatsPort << std::endl;
     write(clientServerFD, info.c_str(), info.length());
     while (!wasRequestSuccessful()) {
         write(clientServerFD, info.c_str(), info.length());
@@ -547,20 +551,41 @@ void handleClientCommand() {
     }
 }
 
+void listenForHeartbeats() {
+    while (isClientConnected) {
+        char buffer[MAXLINE + 1];
+        ssize_t n;
+        int heartbeatFD;
+
+        if ( (heartbeatFD = accept(heartbeatsFD, (struct sockaddr *) NULL, NULL)) >= 0) {
+            if ( (n = read(heartbeatFD, buffer, MAXLINE)) > 0) {
+                buffer[n] = '\0';
+
+                write(heartbeatFD, buffer, n);
+            }
+            close(heartbeatFD);
+        }
+    }
+}
+
 void handleConnectedClient() {
     sendInitialInfoToServer();
+    std::thread heartbeatsListenerThread(listenForHeartbeats);
 
     while (isClientConnected) {
         checkPendingInvite();
         std::cout << PROMPT;
         handleClientCommand();
     }
+    heartbeatsListenerThread.join();
 }
 
 int main(int argc, char **argv) {
     establishServerConnection(argc, argv);
 
-    initP2PListener();
+    initListener(&heartbeatsFD);
+    
+    initListener(&invitesFD);
 
     handleConnectedClient();
 

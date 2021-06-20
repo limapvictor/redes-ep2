@@ -10,4 +10,4 @@ server:
 	g++ $(CPPFLAGS) $(SERVERSRC) -o ./bin/servidor/servidor-$(GAMENAME)
 
 client:
-	g++ $(CPPFLAGS) $(CLIENTSRC) -o ./bin/cliente/$(GAMENAME)
+	g++ $(CPPFLAGS) $(CLIENTSRC) -lpthread -o ./bin/cliente/$(GAMENAME)
