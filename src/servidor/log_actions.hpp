@@ -1,5 +1,7 @@
 void log_init();
 
+bool last_execution_succeeded();
+
 void log_client_connected(string ip_addr);
 
 void log_client_disconnected(string ip_addr);

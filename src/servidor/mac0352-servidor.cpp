@@ -164,6 +164,10 @@ int main (int argc, char **argv) {
 
     log_init();
 
+    if (!last_execution_succeeded()) {
+        remove_online_users();
+    }
+
     if (argc != 2) {
         fprintf(stderr,"Uso: %s <Porta>\n",argv[0]);
         fprintf(stderr,"Vai rodar um servidor de jogo da velha na porta <Porta> TCP\n");
