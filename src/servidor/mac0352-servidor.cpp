@@ -513,7 +513,7 @@ int main (int argc, char **argv) {
                 }
                 else if (comando.compare("exit") == 0) {
 
-                    logout(current_user);
+                    if (current_user->logged_in) logout(current_user);
                     write(connfd, "success", 7);
                     break;
                 }
