@@ -111,7 +111,7 @@ SSL_CTX* create_server_ssl_context() {
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
     ctx = SSL_CTX_new(TLS_server_method());
-    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     return ctx;
 }
 
@@ -227,9 +227,9 @@ int main (int argc, char **argv) {
 
             SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
             SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
+            SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
             ssl = SSL_new(ctx); 
 
-            SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
             SSL_set_fd(ssl, connfd);
 
             SSL_accept(ssl);
@@ -518,7 +518,7 @@ int main (int argc, char **argv) {
                 }
                 else if (comando.compare("exit") == 0) {
 
-                    logout(current_user);
+                    if (current_user->logged_in) logout(current_user);
                     write(connfd, "success", 7);
                     break;
                 }

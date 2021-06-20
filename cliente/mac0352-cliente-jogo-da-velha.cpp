@@ -96,9 +96,9 @@ void establishServerConnection(int argc, char **argv) {
         std::exit(3);
     }
 
+    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
     ssl = SSL_new(ctx);
 
-    SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
     SSL_set_fd(ssl, clientServerFD); 
     SSL_connect(ssl);
 
@@ -591,7 +591,7 @@ SSL_CTX* createClientSSLContext() {
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
     ctx = SSL_CTX_new(TLS_client_method());
-    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
     return ctx;
 }
 
