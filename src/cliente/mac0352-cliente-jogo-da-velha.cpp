@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <math.h>
 
 #include <iostream>
 #include <string>
@@ -18,6 +17,7 @@
 #include <regex>
 
 #include "../utils.hpp"
+#include "./board.hpp"
 
 using namespace std;
 
@@ -32,14 +32,8 @@ bool isClientConnected = false;
 bool isUserLoggedIn = false;
 bool isPlaying = false;
 
-std::map<string, int> SYMBOL_TO_INT = {
-    {" ", 0},
-    {"X", 1},
-    {"O", 2},
-};
-string currentGameChar;
-string currentOpponentChar;
-int board = 0;
+string currentPlayerSymbol;
+string currentOpponentSymbol;
 
 string PROMPT = "JogoDaVelha> ";
 
@@ -171,69 +165,6 @@ bool wasRequestSuccessful() {
     return true;
 }
 
-string inverseSymbol(string symbol) {
-    return symbol == "X" ? "O" : "X";
-}
-
-string getSymbolFromInt(int symbolAsInt) {
-    for (const auto& [key, value] : SYMBOL_TO_INT) {
-        if (value == symbolAsInt) return key;
-    }
-    return " ";
-}
-
-string getPlayerInPosition(int line, int column) {
-    int player;
-
-    player = fmod(board / pow(3, 3 * line + column), 3);
-    return getSymbolFromInt(player);
-}
-
-int isSequenceComplete(int x, int y, int z) {
-    if (x == y && y == z) return x;
-    return 0;
-}
-
-int getGameCurrentResult() {
-    int posA, posB, posC, posD, posE, posF, posG, posH, posI;
-    int lines, columns, diagonal1, diagonal2;
-
-    posA = fmod(board / pow(3, 0), 3);
-    posB = fmod(board / pow(3, 1), 3);
-    posC = fmod(board / pow(3, 2), 3);
-    posD = fmod(board / pow(3, 3), 3);
-    posE = fmod(board / pow(3, 4), 3);
-    posF = fmod(board / pow(3, 5), 3);
-    posG = fmod(board / pow(3, 6), 3);
-    posH = fmod(board / pow(3, 7), 3);
-    posI = fmod(board / pow(3, 8), 3);
-
-    lines = isSequenceComplete(posA, posB, posC) + isSequenceComplete(posD, posE, posF) + isSequenceComplete(posG, posH, posI);
-    if (lines > 0) return lines;
-    columns = isSequenceComplete(posA, posD, posG) + isSequenceComplete(posB, posE, posH) + isSequenceComplete(posC, posF, posI);
-    if (columns > 0) return columns;
-    diagonal1 = isSequenceComplete(posA, posE, posI);
-    if (diagonal1 > 0) return diagonal1;
-    diagonal2 = isSequenceComplete(posC, posE, posG);
-    if (diagonal2 > 0) return diagonal2;
-
-    if (posA > 0 && posB > 0 && posC > 0 && posD > 0 && posE > 0 && posF > 0 && posG > 0 && posH > 0 && posI > 0) return 0;
-    return -1;
-}
-
-void updateBoard(string player, int line, int column) {
-    board += pow(3, (3 * (line - 1) + (column - 1))) * (SYMBOL_TO_INT[player]);
-    std::cout << "Tabuleiro atualizado: " << std::endl;
-}
-
-void printBoard() {
-    std::cout << " " << getPlayerInPosition(0, 0) << " " << "|" << " " << getPlayerInPosition(0, 1) << " " << "|" << " " << getPlayerInPosition(0, 2) <<std::endl;
-    std::cout << "---+---+---" << std::endl;
-    std::cout << " " << getPlayerInPosition(1, 0) << " " << "|" << " " << getPlayerInPosition(1, 1) << " " << "|" << " " << getPlayerInPosition(1, 2) <<std::endl;
-    std::cout << "---+---+---" << std::endl;
-    std::cout << " " << getPlayerInPosition(2, 0) << " " << "|" << " " << getPlayerInPosition(2, 1) << " " << "|" << " " << getPlayerInPosition(2, 2) <<std::endl;
-}
-
 void handleInvalidCommand() {
     std::cout << "O comando digitado não existe ou não está disponível no momento. Tente novamente." << std::endl;
 }
@@ -311,13 +242,14 @@ void handleInviteResponse() {
     }
     if (!establishP2PConnection(response[1], response[2])) return;
     
-    currentGameChar = response[3];
-    currentOpponentChar = inverseSymbol(currentGameChar);
+    currentPlayerSymbol = response[3];
+    currentOpponentSymbol = inverseSymbol(currentPlayerSymbol);
+    resetBoard();
     string firstToPlay = response[4];
-    string gameInitMessage = "play " + currentOpponentChar + " " + firstToPlay;
+    string gameInitMessage = "play " + currentOpponentSymbol + " " + firstToPlay;
     isPlaying = true;
     write(p2pFD, gameInitMessage.c_str(), gameInitMessage.length());
-    handleGame(currentGameChar == firstToPlay);
+    handleGame(currentPlayerSymbol == firstToPlay);
 }
 
 void handleBeginCommand(string command) {
@@ -388,7 +320,7 @@ void checkGameEnd(bool myPlay) {
     if (gameResult == 0) {
         std::cout << "Jogo EMPATADO!" << std::endl;
         resultToServer = myPlay ? "result draw" : "endgame";
-    } else if (gameResult == SYMBOL_TO_INT[currentGameChar]) {
+    } else if (gameResult == getIntFromPlayerSymbol(currentPlayerSymbol)) {
         std::cout << "VITÓRIA!!" << std::endl;
         resultToServer = "result victory";
     } else {
@@ -413,14 +345,14 @@ void waitForOpponentPlay() {
         std::cout << "Jogada recebida!" << std::endl;
         buffer[n] = '\0';
         response = convertAndSplit(buffer);
-        updateBoard(currentOpponentChar, stoi(response[1]), stoi(response[2]));
+        updateBoard(currentOpponentSymbol, stoi(response[1]), stoi(response[2]));
         printBoard();
         checkGameEnd(false);
     }
 }
 
 void handleSendCommand(vector<string> command, string fullCommand) {
-    updateBoard(currentGameChar, stoi(command[1]), stoi(command[2]));
+    updateBoard(currentPlayerSymbol, stoi(command[1]), stoi(command[2]));
     printBoard();
     write(p2pFD, fullCommand.c_str(), fullCommand.length());
     checkGameEnd(true);
@@ -468,14 +400,14 @@ void waitForInviterConnection(string inviter) {
         vector<string> gameInfo = convertAndSplit(buffer);
         if (gameInfo[0] == "play") {
             isPlaying = true;
-            board = 0;
-            currentGameChar = gameInfo[1];
-            currentOpponentChar = inverseSymbol(gameInfo[1]);
+            currentPlayerSymbol = gameInfo[1];
+            currentOpponentSymbol = inverseSymbol(gameInfo[1]);
             string firstPlayer = gameInfo[2];
             std::cout << "Jogo INICIADO!" << std::endl;
+            resetBoard();
             string startGane = "startgame " + inviter;
             write(clientServerFD, startGane.c_str(), startGane.length());
-            handleGame(firstPlayer == currentGameChar);
+            handleGame(firstPlayer == currentPlayerSymbol);
         }
     }
 }
