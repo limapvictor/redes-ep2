@@ -159,7 +159,6 @@ void updateDelayHistory(uint64_t sendTime) {
     
     uint64_t receiveTime = stoull(response[1]);
     currentGameDelay[currentGameCalculatedDelaysCount++] = receiveTime - sendTime;
-    std::cout << currentGameDelay[currentGameCalculatedDelaysCount-1] << std::endl;
 }
 
 void checkGameEnd(bool myPlay) {

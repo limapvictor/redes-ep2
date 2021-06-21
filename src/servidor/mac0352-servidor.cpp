@@ -381,7 +381,6 @@ int main (int argc, char **argv) {
                 if (comando.compare("encrypted") == 0) {
                     mensagem = get_SSL_read(ctx, connfd, recvline);
                     comando = mensagem[0];
-                    cout << comando << endl;
                 }
 
                 if (comando.compare("adduser") == 0) {
