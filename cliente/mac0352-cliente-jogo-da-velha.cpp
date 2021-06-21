@@ -30,7 +30,6 @@ int clientServerFD;
 int p2pFD;
 int invitesFD;
 
-SSL* ssl;
 SSL_CTX* ctx;
 
 bool isClientConnected = false;
@@ -96,12 +95,6 @@ void establishServerConnection(int argc, char **argv) {
         std::exit(3);
     }
 
-    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
-    ssl = SSL_new(ctx);
-
-    SSL_set_fd(ssl, clientServerFD); 
-    SSL_connect(ssl);
-
     isClientConnected = true;
     std::cout << "-------------------------JV's-------------------------" << std::endl;
 }
@@ -163,7 +156,6 @@ string getServerResponse() {
         std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
         return std::string();
     }
-    cout << bufferSize << endl;
     buffer[bufferSize] = '\0';
     return std::string(buffer);
 }
@@ -255,6 +247,7 @@ void handleInvalidCommand() {
 }
 
 void handleUserConnectCommand(string command) {
+    char buffer[MAXLINE + 1];
     if (isUserLoggedIn) {
         std::cerr << "Você já está logado." << std::endl;
         return;
@@ -267,7 +260,16 @@ void handleUserConnectCommand(string command) {
     }
     
     write(clientServerFD, "encrypted", 9);
+    
+    SSL* ssl = SSL_new(ctx);
+
+    SSL_set_fd(ssl, clientServerFD); 
+    SSL_connect(ssl);
     SSL_write(ssl, command.c_str(), command.length());
+    int n = SSL_read(ssl, buffer, MAXLINE);
+    buffer[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
     if (wasRequestSuccessful()) {
         std::cout << "Login realizado com sucesso!\nAgora você pode convidar/ser convidado para uma partida." << std::endl;
         isUserLoggedIn = true;
@@ -275,6 +277,7 @@ void handleUserConnectCommand(string command) {
 }
 
 void handlePasswdCommand(string command) {
+    char buffer[MAXLINE + 1];
     if (!isUserLoggedIn) {
         std::cerr << "Você deve estar logado para trocar sua senha." << std::endl;
         return;
@@ -287,7 +290,15 @@ void handlePasswdCommand(string command) {
     }
     
     write(clientServerFD, "encrypted", 9);
+    SSL* ssl = SSL_new(ctx);
+
+    SSL_set_fd(ssl, clientServerFD); 
+    SSL_connect(ssl);
     SSL_write(ssl, command.c_str(), command.length());
+    int n = SSL_read(ssl, buffer, MAXLINE);
+    buffer[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
     if (wasRequestSuccessful()) {
         std::cout << "Senha trocada com sucesso." << std::endl;
     }
@@ -375,7 +386,6 @@ void handleExitCommand(string command) {
         std::cout << "Saindo do jogo..." << std::endl;
     }
 
-    SSL_free(ssl);
     close(clientServerFD);
     SSL_CTX_free(ctx); 
     isClientConnected = false;
@@ -586,12 +596,15 @@ void handleConnectedClient() {
 }
 
 SSL_CTX* createClientSSLContext() {
+    const SSL_METHOD *method;
     SSL_CTX *ctx;
 
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
-    ctx = SSL_CTX_new(TLS_client_method());
+    method = TLS_client_method();
+    ctx = SSL_CTX_new(method);
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
     return ctx;
 }
 

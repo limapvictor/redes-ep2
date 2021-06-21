@@ -106,13 +106,32 @@ int invite_player(int connfd, string ip_addr, string port) {
 }
 
 SSL_CTX* create_server_ssl_context() {
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    const SSL_METHOD *method;
     SSL_CTX *ctx;
 
-    OpenSSL_add_all_algorithms();
-    SSL_load_error_strings();
-    ctx = SSL_CTX_new(TLS_server_method());
+    method = TLS_server_method();
+    ctx = SSL_CTX_new(method);
     SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+    SSL_CTX_set_ecdh_auto(ctx, 1);
+    SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
     return ctx;
+}
+
+vector<string> get_SSL_read(SSL_CTX* ctx, int sockfd, char* recvline) {
+    SSL* ssl;
+    ssl = SSL_new(ctx); 
+    SSL_set_fd(ssl, sockfd);
+    SSL_accept(ssl);
+    int n = SSL_read(ssl, recvline, MAXLINE);
+    recvline[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    return convertAndSplit(recvline);
 }
 
 int main (int argc, char **argv) {
@@ -219,20 +238,8 @@ int main (int argc, char **argv) {
 
             log_client_connected(ip_addr);
 
-            SSL* ssl;
-            int sd;
             SSL_library_init();
-
             SSL_CTX* ctx = create_server_ssl_context();
-
-            SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
-            SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
-            SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
-            ssl = SSL_new(ctx); 
-
-            SSL_set_fd(ssl, connfd);
-
-            SSL_accept(ssl);
 
             n = read(connfd, recvline, MAXLINE);
             recvline[n] = 0;
@@ -321,11 +328,11 @@ int main (int argc, char **argv) {
                 recvline[n] = 0;
                 vector<string> mensagem = convertAndSplit(recvline);
                 string comando = mensagem[0];
+                cout << comando << endl;
                 if (comando.compare("encrypted") == 0) {
-                    n = SSL_read(ssl, recvline, MAXLINE);
-                    recvline[n] = 0;
-                    mensagem = convertAndSplit(recvline);
+                    mensagem = get_SSL_read(ctx, connfd, recvline);
                     comando = mensagem[0];
+                    cout << comando << endl;
                 }
 
                 if (comando.compare("adduser") == 0) {
@@ -561,10 +568,6 @@ int main (int argc, char **argv) {
             /* ========================================================= */
 
             log_client_disconnected(ip_addr);
-
-            sd = SSL_get_fd(ssl);
-            SSL_free(ssl);
-            close(sd);
 
             SSL_CTX_free(ctx);
             /* Após ter feito toda a troca de informação com o cliente,
