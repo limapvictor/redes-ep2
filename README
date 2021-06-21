@@ -10,6 +10,9 @@ INTRODUÇÃO
     por manter as informações sobre os usuários, fazer sua autenticação, manter um log das ações relevantes e permitir conexão
     entre os clientes para a realização das partidas. Já o cliente é responsável por permitir que o usuário se conecte ao servidor
     para poder jogar contra outros jogadores.
+    O servidor funciona por meio da criação de processos, de forma que, toda vez que um cliente se conecta, o servidor cria um
+    processo filho que lida exclusivamente com aquele cliente. A estrutura base para esse código foi o código de um servidor de echo
+    disponibilizado pelo professor Daniel Macêdo Batista para a realização do EP1.
 
 BANCO DE DADOS
 
@@ -32,10 +35,12 @@ AUTENTICAÇÃO
     Mudança de senha -> passwd <senha_atual> <nova_senha>
     Logout de usuário -> logout
 
-    Os três primeiros comandos, que envolvem senhas, deveriam ser transmitidos usando alguma forma de encriptação. Infelizmente, não
-    conseguimos fazer com que o SSL funcionasse corretamente em nosso código, e por isso optamos por não utilizá-lo. Muitas partes do
-    código acabavam prejudicadas, o que além de atrapalhar o programa, provavelmente também dificultaria a correção. Optamos, no entanto,
-    por deixar o código referente a ssl comentado, para deixar ilustrada nossa tentativa com o uso da biblioteca OpenSSL.
+    Os três primeiros comandos, que envolvem senhas, são transmitidos de forma criptografada, utilizando o OpenSSL. Para informar ao servidor que um pacote
+    criptografado será enviado, primeiro o cliente envia um pacote com o conteúdo "encrypted", e só então envia o pacote criptografado de fato.
+    Os códigos relativos a criptografia foram feitos a partir das seguintes referências:
+        https://stackoverflow.com/questions/11705815/client-and-server-communication-using-ssl-c-c-ssl-protocol-dont-works
+        https://www.ibm.com/docs/en/ztpf/2021?topic=layer-programming-new-ssl-applications
+        https://quuxplusone.github.io/blog/2020/01/24/openssl-part-1/
 
 COMANDOS DO SISTEMA
 
