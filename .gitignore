@@ -41,7 +41,7 @@ test*
 bin/servidor/users/*
 bin/servidor/online/*
 bin/servidor/matches/*
-servidor/servidor
+servidor
 bin/servidor/log/*
 
 #executaveis

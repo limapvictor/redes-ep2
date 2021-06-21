@@ -15,6 +15,15 @@ using filesystem::exists;
 #define ONLINE_PATH "./online/"
 #define MATCHES_PATH "./matches/"
 
+void create_server_directories() {
+    vector<string> diretorios {"users", "online", "matches", "log"};
+    for (string name : diretorios) {
+        if (!filesystem::exists(name)) {
+            filesystem::create_directory(name);
+        }
+    }
+}
+
 bool check_user_exists(string username) {
     return exists(USERS_PATH + username);
 }

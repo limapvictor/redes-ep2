@@ -29,15 +29,6 @@ typedef struct usuario {
 
 typedef usuario* user;
 
-void create_server_directories() {
-    vector<string> diretorios {"users", "online", "matches", "log"};
-    for (string name : diretorios) {
-        if (!filesystem::exists(name)) {
-            filesystem::create_directory(name);
-        }
-    }
-}
-
 void login(user usuario, string username, string ip_addr, string hb_port, string game_port) {
     add_active_user(username, ip_addr, hb_port, game_port);
     usuario->logged_in = true;
@@ -193,7 +184,7 @@ int main (int argc, char **argv) {
     }
 
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("socket :(\n");
+        perror("Erro ao criar socket.\n");
         std::exit(2);
     }
 
@@ -202,12 +193,12 @@ int main (int argc, char **argv) {
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port        = htons(atoi(argv[1]));
     if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-        perror("bind :(\n");
+        perror("Erro ao conectar socket à porta\n");
         std::exit(3);
     }
 
     if (listen(listenfd, LISTENQ) == -1) {
-        perror("listen :(\n");
+        perror("Erro ao esperar por conexões.\n");
         std::exit(4);
     }
 
@@ -217,7 +208,7 @@ int main (int argc, char **argv) {
 	for (;;) {
 
         if ((connfd = accept(listenfd, (struct sockaddr *) NULL, NULL)) == -1 ) {
-            perror("accept :(\n");
+            perror("Erro ao aceitar conexão\n");
             std::exit(5);
         }
         

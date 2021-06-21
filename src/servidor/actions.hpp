@@ -9,6 +9,8 @@ typedef struct net_address {
 
 typedef net_address* net_addr;
 
+void create_server_directories();
+
 bool check_user_exists(string username);
 
 bool check_user_online(string username);
