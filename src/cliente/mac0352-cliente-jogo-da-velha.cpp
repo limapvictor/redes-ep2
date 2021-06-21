@@ -14,7 +14,7 @@
 
 using namespace std;
 
-#define MAXLINE 100
+#define MAXLINE 4096
 #define LISTENQ 1
 
 int clientServerFD;
