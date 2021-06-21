@@ -1,0 +1,101 @@
+Sistema de Jogo da Velha
+João Gabriel Loureiro de Lima Lembo - NUSP 1037178
+Victor Pereira Lima - NUSP 10737028
+
+O PROGRAMA
+
+INTRODUÇÃO
+
+    Este é um sistema de jogo da velha, composto por um programa servidor e um programa cliente. O servidor é responsável
+    por manter as informações sobre os usuários, fazer sua autenticação, manter um log das ações relevantes e permitir conexão
+    entre os clientes para a realização das partidas. Já o cliente é responsável por permitir que o usuário se conecte ao servidor
+    para poder jogar contra outros jogadores.
+
+BANCO DE DADOS
+
+    O servidor utiliza um sistema de arquivos para armazenar os dados relevantes. Ele é composto por quatro diretórios: 
+    users -> Possui as informações do usuário, nome e senha, e sua pontuação
+    online -> Possui informações sobre os usuários logados, nome, ip de onde está conectado, porta em que espera por heartbeats e porta em que espera por convites
+    matches -> Possui as partidas em andamento. Cada partida é composta por 2 arquivos, cada um com o nome de um jogador, e como conteúdo o nome do jogador adversário.
+    log -> Possui o arquivo de log gerado e atualizado pelo servidor
+
+COMUNICAÇÃO
+
+    A comunicação feita tanto entre o servidor e os clientes, quanto entre clientes, é feita através de pacotes com mensagens em formato ASCII.
+    Esses pacotes seguem o formato <comando> <parametro1> <parametro2> ...
+    A seguir, uma descrição dos pacotes separados de acordo com suas funcionalidades
+
+AUTENTICAÇÃO
+
+    Adição de usuário -> adduser <nome_de_usuario> <senha>
+    Login de usuário -> login <nome_de_usuario> <senha>
+    Mudança de senha -> passwd <senha_atual> <nova_senha>
+    Logout de usuário -> logout
+
+    Os três primeiros comandos, que envolvem senhas, deveriam ser transmitidos usando alguma forma de encriptação. Infelizmente, não
+    conseguimos fazer com que o SSL funcionasse corretamente em nosso código, e por isso optamos por não utilizá-lo. Muitas partes do
+    código acabavam prejudicadas, o que além de atrapalhar o programa, provavelmente também dificultaria a correção. Optamos, no entanto,
+    por deixar o código referente a ssl comentado, para deixar ilustrada nossa tentativa com o uso da biblioteca OpenSSL.
+
+COMANDOS DO SISTEMA
+
+    Listagem da tabela de classificação -> leaders (servidor retorna “leaders” seguido de todos os jogadores e suas pontuações, por ordem decrescente de pontos)
+    Listagem dos usuários ativos -> list (servidor retorna “active” seguido de todos os jogadores online e seus status (em partida ou não))
+    Sair do sistema -> exit
+
+COMANDOS DE JOGO
+
+    Envio de desafio a outro jogador -> begin <nome_do_oponente>
+    Envio do resultado ao sistema (realizado internamente pelo cliente):
+        Empate -> result draw
+        Vitória -> result victory
+        O envio é sempre feito pelo jogador que fez a jogada final da partida
+
+    Registro de início de partida -> startgame
+    Registro de fim de partida -> endgame
+    Envio de jogada (P2P) -> send <linha> <coluna>
+    Envio de desistência (P2P) -> end
+
+PACOTES DE CONEXÃO
+
+    Quando o cliente se conecta ao servidor, envia um pacote de informações, caso seja o início da conexão, ou um pacote de reconnect, caso seja uma conexão.
+
+    O pacote de informações tem o formato info <porta_para_heartbeat> <porta_para_convites>, de forma que o servidor consiga armazenar em qual porta aquele
+    cliente deixará aberta para recebimento de heartbeats e qual ficará aberta para recebimento de convites.
+
+    Já o pacote de reconexão informa apenas qual o jogador está se reconectando, reconnect <nome_do_jogador>, e o servidor então utiliza os seus próprios
+    dados armazenados para recuperar a máquina de estados.
+
+PACOTES INTERNOS DE JOGO
+
+    Envio de convite para o jogador desafiado -> invite <nome_do_desafiante>
+    Envio de rejeição do convite para o desafiante -> reject
+    Envio de aceitação de convite para o desafiante -> accept <ip_do_desafiado> <porta_do_desafiado> <simbolo_do_desafiante> <simbolo_do_primeiro_jogador>
+
+PACOTES DO HEARTBEAT
+
+    Sempre que um cliente se conecta ao servidor, passa a receber mensagens de heartbeat a cada 50 segundos, que permitem que o servidor verifique caso o
+    cliente caia. Ele decide que o cliente caiu quando passa 3 minutos sem receber o retorno da mensagem de heartbeat enviada. Nesse caso, caso o cliente
+    esteja em partida, o cliente adversário é informado através de um pacote disconnected, para que o cliente possa se desconectar da partida em que estava.
+
+    Envio de heartbeat -> heartbeat
+    Aviso de desconexão de outro cliente -> disconnected
+
+SISTEMA DE ARQUIVOS
+
+ORGANIZAÇÃO DOS DIRETÓRIOS E ARQUIVOS
+
+    Makefile - Possui as instruções para compilação dos códigos-fonte
+    src - Possui os códigos-fonte do cliente e servidor, além de arquivos auxiliares
+    bin - Possui os executáveis do servidor e do cliente (após o comando make)
+
+UTILIZAÇÃO
+
+    Para utilizar o programa, basta rodar o comando make em um terminal, e tanto o programa do servidor quanto do cliente serão criados nos seus diretórios
+    respectivos dentro do diretório bin.
+
+
+
+
+
+
