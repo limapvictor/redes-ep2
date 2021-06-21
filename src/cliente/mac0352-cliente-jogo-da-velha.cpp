@@ -12,13 +12,15 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-
 #include <iostream>
 #include <string>
 #include <map>
 #include <regex>
 #include <chrono>
 #include <thread>
+
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "../utils.hpp"
 #include "./board.hpp"
@@ -36,6 +38,8 @@ int unansweredInviteFD;
 
 int savedArgc;
 char **savedArgv;
+
+SSL_CTX* ctx;
 
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
@@ -99,6 +103,19 @@ void handleLogoutCommand(string command);
 void handleExitCommand(string command);
 void handleClientCommand();
 void handleConnectedClient();
+
+
+void createClientSSLContext() {
+    const SSL_METHOD *method;
+
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    method = TLS_client_method();
+    ctx = SSL_CTX_new(method);
+    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
+    return;
+}
 
 string getServerResponse() {
     char buffer[MAXLINE + 1];
@@ -192,6 +209,9 @@ void sendInitialInfoToServer() {
 
 int establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
+
+    SSL_library_init();
+    createClientSSLContext();
    
     if (argc != 3) {
         fprintf(stderr, "O cliente do jogo da velha deve ser chamado com: %s <SERVER IP ADDRESS> <SERVER PORT>\n", argv[0]);
@@ -438,6 +458,7 @@ void handleInvalidCommand() {
 }
 
 void handleUserConnectCommand(string command) {
+    char buffer[MAXLINE + 1];
     if (isUserLoggedIn) {
         std::cerr << "Você já está logado." << std::endl;
         return;
@@ -448,8 +469,19 @@ void handleUserConnectCommand(string command) {
         std::cerr << "Comando mal formatado. Ele deve ter o formato 'comando <USER(AlfaNum 3-16 carecteres)> <SENHA(AlfaNum 3-16 carecteres)>'. Tente novamente" << std::endl;
         return;
     }
+
+    write(clientServerFD, "encrypted", 9);
     
-    write(clientServerFD, command.c_str(), command.length());
+    SSL* ssl = SSL_new(ctx);
+
+    SSL_set_fd(ssl, clientServerFD); 
+    SSL_connect(ssl);
+    SSL_write(ssl, command.c_str(), command.length());
+    int n = SSL_read(ssl, buffer, MAXLINE);
+    buffer[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+
     if (wasRequestSuccessful()) {
         std::cout << "Login realizado com sucesso!\nAgora você pode convidar/ser convidado para uma partida." << std::endl;
         isUserLoggedIn = true;
@@ -458,6 +490,7 @@ void handleUserConnectCommand(string command) {
 }
 
 void handlePasswdCommand(string command) {
+    char buffer[MAXLINE + 1];
     if (!isUserLoggedIn) {
         std::cerr << "Você deve estar logado para trocar sua senha." << std::endl;
         return;
@@ -469,7 +502,17 @@ void handlePasswdCommand(string command) {
         return;
     }
     
-    write(clientServerFD, command.c_str(), command.length());
+    write(clientServerFD, "encrypted", 9);
+    
+    SSL* ssl = SSL_new(ctx);
+
+    SSL_set_fd(ssl, clientServerFD); 
+    SSL_connect(ssl);
+    SSL_write(ssl, command.c_str(), command.length());
+    int n = SSL_read(ssl, buffer, MAXLINE);
+    buffer[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
     if (wasRequestSuccessful()) {
         std::cout << "Senha trocada com sucesso." << std::endl;
     }

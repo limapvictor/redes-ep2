@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <filesystem>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "../utils.hpp"
 #include "actions.hpp"
 #include "log_actions.hpp"
@@ -138,15 +139,38 @@ int invite_player(int connfd, string ip_addr, string port) {
     return sockfd;
 }
 
-// SSL_CTX* create_server_ssl_context() {
-//     SSL_CTX *ctx;
+SSL_CTX* create_server_ssl_context() {
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
 
-//     OpenSSL_add_all_algorithms();  /* load & register all cryptos, etc. */
-//     SSL_load_error_strings();   /* load all error messages */
-//     ctx = SSL_CTX_new(TLS_server_method());   /* create new context from method */
-//     SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-//     return ctx;
-// }
+    const SSL_METHOD *method;
+    SSL_CTX *ctx;
+
+    method = TLS_server_method();
+    ctx = SSL_CTX_new(method);
+    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+    SSL_CTX_set_ecdh_auto(ctx, 1);
+    SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256");
+    return ctx;
+}
+
+vector<string> get_SSL_read(SSL_CTX* ctx, int sockfd, char* recvline) {
+    SSL* ssl;
+    ssl = SSL_new(ctx);
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    flags &= ~O_NONBLOCK;
+    fcntl(sockfd, F_SETFL, flags);
+    SSL_set_fd(ssl, sockfd);
+    SSL_accept(ssl);
+    int n = SSL_read(ssl, recvline, MAXLINE);
+    recvline[n] = 0;
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    fcntl(sockfd, F_SETFL, O_NONBLOCK);
+    return convertAndSplit(recvline);
+}
 
 int main (int argc, char **argv) {
     /* Os sockets. Um que será o socket que vai escutar pelas conexões
@@ -253,6 +277,8 @@ int main (int argc, char **argv) {
              * listenfd. Só o processo pai precisa deste socket. */
             close(listenfd);
 
+            signal(SIGINT, SIG_DFL);
+
             prctl(PR_SET_PDEATHSIG, SIGHUP);
 
             signal(SIGHUP, stop_child);
@@ -262,20 +288,8 @@ int main (int argc, char **argv) {
 
             log_client_connected(ip_addr);
 
-            // SSL* ssl;
-            // int sd;
-            // SSL_library_init();
-
-            // SSL_CTX* ctx = create_server_ssl_context();
-
-            // SSL_CTX_use_PrivateKey_file(ctx, "server-private-key.pem", SSL_FILETYPE_PEM);
-            // SSL_CTX_use_certificate_file(ctx, "server-certificate.pem", SSL_FILETYPE_PEM);
-            // ssl = SSL_new(ctx);              /* get new SSL state with context */
-
-            // SSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384");
-            // SSL_set_fd(ssl, connfd);      /* set connection socket to SSL state */
-
-            // SSL_accept(ssl);
+            SSL_library_init();
+            SSL_CTX* ctx = create_server_ssl_context();
 
             string hb_port;
             string game_port;
@@ -364,11 +378,11 @@ int main (int argc, char **argv) {
 
                 vector<string> mensagem = convertAndSplit(recvline);
                 string comando = mensagem[0];
-                // if (comando.compare("encrypted") == 0) {
-                //     n = SSL_read(ssl, recvline, MAXLINE);
-                //     mensagem = convertAndSplit(recvline);
-                //     comando = mensagem[0];
-                // }
+                if (comando.compare("encrypted") == 0) {
+                    mensagem = get_SSL_read(ctx, connfd, recvline);
+                    comando = mensagem[0];
+                    cout << comando << endl;
+                }
 
                 if (comando.compare("adduser") == 0) {
 
