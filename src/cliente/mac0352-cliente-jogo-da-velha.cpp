@@ -1,22 +1,9 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cerrno>
-#include <ctime>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <signal.h>
 
-#include <iostream>
-#include <string>
-#include <map>
 #include <regex>
-#include <chrono>
 #include <thread>
 
 #include <openssl/ssl.h>
