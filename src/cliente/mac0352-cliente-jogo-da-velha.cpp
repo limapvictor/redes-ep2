@@ -173,8 +173,7 @@ void sendInitialInfoToServer() {
     getsockname(heartbeatsFD, (struct sockaddr *) &invitesSocketAddr, &sockLen);
     heartbeatsPort = ntohs(invitesSocketAddr.sin_port);
 
-    std::string info = "info " + std::to_string(invitesPort);
-    std::cout << info << " " << heartbeatsPort << std::endl;
+    std::string info = "info " + std::to_string(heartbeatsPort) + " " + std::to_string(invitesPort);
     write(clientServerFD, info.c_str(), info.length());
     while (!wasRequestSuccessful()) {
         write(clientServerFD, info.c_str(), info.length());

@@ -161,7 +161,7 @@ int main (int argc, char **argv) {
     /* Armazena linhas recebidas do cliente */
     char recvline[MAXLINE + 1] = {};
     /* Armazena o tamanho da string lida do cliente */
-    ssize_t n;
+    ssize_t n, hb_n;
 
     signal(SIGINT, server_stop);
 
@@ -285,8 +285,8 @@ int main (int argc, char **argv) {
             vector<string> start_message = convertAndSplit(recvline);
             string comando = start_message[0];
             if (comando.compare("info") == 0) {
-                string hb_port = start_message[1];
-                string game_port = start_message[2];                
+                hb_port = start_message[1];
+                game_port = start_message[2];                
                 current_user->logged_in = false;
                 current_user->is_playing = false;
             }
@@ -314,50 +314,50 @@ int main (int argc, char **argv) {
             /* TODO: É esta parte do código que terá que ser modificada
              * para que este servidor consiga interpretar comandos MQTT  */
 
-            //HEARTBEATfcntl(connfd, F_SETFL, O_NONBLOCK);
-            //HEARTBEATfcntl(hb_fd, F_SETFL, O_NONBLOCK);
+            fcntl(connfd, F_SETFL, O_NONBLOCK);
 
-            //HEARTBEATclock_t heartbeat_send_time = clock();
-            //HEARTBEATbool heartbeat_sent = false;
+            clock_t heartbeat_send_time = clock();
+            bool heartbeat_sent = false;
 
-            //HEARTBEATclock_t accept_time;
+            clock_t accept_time;
 
-            //int hb_fd;
+            int hb_fd;
 
             for (;;) {
 
-                // if (heartbeat_sent && ((float) ((clock() - accept_time) / CLOCKS_PER_SEC) > 180)) {
-                //     if (current_user->logged_in) logout(current_user);
-                //     log_client_crash(ip_addr);
-                //     break;
-                // }
+                if (heartbeat_sent && ((float) ((clock() - accept_time) / CLOCKS_PER_SEC) > 180)) {
+                    if (current_user->logged_in) logout(current_user);
+                    log_client_crash(ip_addr);
+                    break;
+                }
                     
                 n = read(connfd, recvline, MAXLINE);
-                recvline[n] = 0;
 
-                // HEARTBEATif (n == -1 && errno == EAGAIN && !heartbeat_sent) {
-                //     if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
-                //         hb_fd = create_hb_socket(ip_addr, hb_port);
-                //         write(hb_fd, "heartbeat", 9);
-                //         heartbeat_send_time = clock();
-                //         heartbeat_sent = true;
-                //         accept_time = clock();
-                //     }
-                // }
+                if (n == -1 && errno == EAGAIN && !heartbeat_sent) {
+                    if ((float) ((clock() - heartbeat_send_time) / CLOCKS_PER_SEC) >= 50) {
+                        hb_fd = create_hb_socket(ip_addr, hb_port);
+                        fcntl(hb_fd, F_SETFL, O_NONBLOCK);
+                        write(hb_fd, "heartbeat", 9);
+                        heartbeat_send_time = clock();
+                        heartbeat_sent = true;
+                        accept_time = clock();
+                    }
+                }
 
-                // HEARTBEATif (heartbeat_sent) {
-                //         hb_n = read(hb_fd, recvline, MAXLINE);
-                //         if (hb_n == -1 && errno == EAGAIN);
-                //         else if (hb_n >= 0) {
-                //             heartbeat_sent = false;     
-                //             close(hb_fd);           
-                //         }
-                //     }
-                // } 
+                if (heartbeat_sent) {
+                    hb_n = read(hb_fd, recvline, MAXLINE);
+                    if (hb_n == -1 && errno == EAGAIN);
+                    else if (hb_n > 0) {
+                        heartbeat_sent = false;     
+                        close(hb_fd);           
+                    }
+                } 
 
                 if (n < 0) {
                     continue;
                 }
+
+                recvline[n] = 0;
 
                 vector<string> mensagem = convertAndSplit(recvline);
                 string comando = mensagem[0];
