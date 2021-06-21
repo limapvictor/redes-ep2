@@ -73,6 +73,7 @@ void restore_user(user usuario, string username) {
     usuario->is_playing = true;
     string oponente = get_opponent(username);
     net_addr opponent_info = get_user_net_info(oponente);
+    usuario->challenger_name = oponente;
     usuario->challenger_ip_address = opponent_info->ip_addr;
     usuario->challenger_port = opponent_info->game_port;
 }
@@ -293,6 +294,8 @@ int main (int argc, char **argv) {
             else if (comando.compare("reconnect") == 0) {
                 string usuario = start_message[1];
                 restore_user(current_user, usuario);
+                hb_port = current_user->hb_port;
+                game_port = current_user->game_port;
             }
          
             write(connfd, "success", 7);

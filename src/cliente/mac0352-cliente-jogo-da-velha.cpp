@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
+
 
 #include <iostream>
 #include <string>
@@ -32,15 +34,21 @@ int invitesFD;
 int heartbeatsFD;
 int unansweredInviteFD;
 
+int savedArgc;
+char **savedArgv;
+
 bool isClientConnected = false;
 bool isUserLoggedIn = false;
 bool isPlaying = false;
 bool hasUnansweredInvite = false;
 
+string loggedUser;
+
 string currentPlayerSymbol;
 string currentOpponentSymbol;
 
 string unansweredInviter;
+string pendingMessageToServer;
 
 vector<uint64_t> currentGameDelay(5);
 short int currentGameCalculatedDelaysCount;
@@ -62,7 +70,7 @@ std::map<string, int> COMMAND_TYPES = {
     {"accept", 11}
 };
 
-void establishServerConnection(int argc, char **argv);
+int establishServerConnection(int argc, char **argv);
 bool establishP2PConnection(string peerIpAddress, string peerPort);
 void initListener(int *listenerFD);
 string getServerResponse();
@@ -79,7 +87,6 @@ void updateDelayHistory(uint64_t sendTime);
 void handleSendCommand(vector<string> command, string fullCommand);
 void handleEndCommand(string command);
 void handleDelayCommand();
-void handleGame(bool firstToPlay);
 void waitForInviterConnection(string inviter);
 void listenForHeartbeats();
 void listenForInvites();
@@ -97,7 +104,7 @@ string getServerResponse() {
     char buffer[MAXLINE + 1];
     int bufferSize;
 
-    if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) < 0) {
+    if ( (bufferSize = read(clientServerFD, buffer, MAXLINE)) <= 0) {
         std::cerr << "Erro ao ler a resposta do servidor. Tente novamente." << std::endl;
         return std::string();
     }
@@ -139,8 +146,8 @@ void updateDelayHistory(uint64_t sendTime) {
 }
 
 void checkGameEnd(bool myPlay) {
-    int gameResult;
     string resultToServer;
+    int gameResult;
 
     if ( (gameResult = getGameCurrentResult()) < 0) return;
     
@@ -156,7 +163,10 @@ void checkGameEnd(bool myPlay) {
     }
     
     write(clientServerFD, resultToServer.c_str(), resultToServer.length());
-    wasRequestSuccessful();
+    while (!wasRequestSuccessful()) {
+        pendingMessageToServer = resultToServer;
+        write(clientServerFD, resultToServer.c_str(), resultToServer.length());
+    }
 
     isPlaying = false;
 }
@@ -180,17 +190,17 @@ void sendInitialInfoToServer() {
     }
 }
 
-void establishServerConnection(int argc, char **argv) {
+int establishServerConnection(int argc, char **argv) {
     struct sockaddr_in serverAddress;
    
     if (argc != 3) {
         fprintf(stderr, "O cliente do jogo da velha deve ser chamado com: %s <SERVER IP ADDRESS> <SERVER PORT>\n", argv[0]);
-        std::exit(1);
+        return 1;
     }
    
     if ( (clientServerFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         fprintf(stderr,"Erro interno de rede. Tente novamente mais tarde.\n");
-        std::exit(2);
+        return 2;
     }
    
    bzero(&serverAddress, sizeof(serverAddress));
@@ -199,16 +209,17 @@ void establishServerConnection(int argc, char **argv) {
 
     if (inet_pton(AF_INET, argv[1], &serverAddress.sin_addr) <= 0) {
         fprintf(stderr,"Erro interno de rede. Tente novamente mais tarde.\n");
-        std::exit(7);
+        return 7;
     }
    
     if (connect(clientServerFD, (struct sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         fprintf(stderr,"Não foi possível se conectar com o servidor. Tente novamente mais tarde,\n");
-        std::exit(3);
+        return 3;
     }
 
     isClientConnected = true;
-    std::cout << "-------------------------JV's-------------------------" << std::endl;
+    savedArgc = argc; savedArgv = argv;
+    return 0;
 }
 
 bool establishP2PConnection(string peerIpAddress, string peerPort) {
@@ -442,6 +453,7 @@ void handleUserConnectCommand(string command) {
     if (wasRequestSuccessful()) {
         std::cout << "Login realizado com sucesso!\nAgora você pode convidar/ser convidado para uma partida." << std::endl;
         isUserLoggedIn = true;
+        loggedUser = convertAndSplit(command.data())[1];
     }
 }
 
@@ -651,13 +663,38 @@ void handleConnectedClient() {
     invitesListenerThread.join();
 }
 
+void handleLostConnectionWithServer(int signum) {
+    std::cout << "Você perdeu conexão com o servidor. Tentando restabelecer conexão com o servidor (por 3 min)" << std::endl;
+    uint64_t startTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    while (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count() - startTime < 180) {
+        std::cout << "Tentativa de restabelecer..." << std::endl;
+        if (establishServerConnection(savedArgc, savedArgv) == 0) {
+            string reconnect = "reconnect " + loggedUser;
+            write(clientServerFD, reconnect.c_str(), reconnect.length());
+            if (wasRequestSuccessful()) {
+                write(clientServerFD, pendingMessageToServer.c_str(), pendingMessageToServer.length());
+                pendingMessageToServer = "";
+                std::cout << "Conexão restabelecida!" << std::endl;
+                return;
+            }
+        }
+        sleep(10);
+    }
+    std::cout << "Não foi possível restabelecer a conexão no tempo limite. Saindo..." << std::endl;
+    exit(10);
+}
+
 int main(int argc, char **argv) {
-    establishServerConnection(argc, argv);
+    signal(SIGPIPE, handleLostConnectionWithServer);
+
+    int established = establishServerConnection(argc, argv);
+    if (established > 0) exit(established);
 
     initListener(&heartbeatsFD);
     
     initListener(&invitesFD);
 
+    std::cout << "-------------------------JV's-------------------------" << std::endl;
     handleConnectedClient();
 
     exit(0); 
